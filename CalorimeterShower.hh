@@ -28,7 +28,7 @@ public:
     CalorimeterShower(unsigned int,unsigned int,vector<double>*, vector<double>*, Wavelets, OperatorID);
     ~CalorimeterShower() = default;
 
-    void set_x_range(double, double);
+    void set_x_range(double, double); //sets min and max range
     void set_n_modules(unsigned int);
     void set_n_events(unsigned int in) { n_events = in; }
     void set_par(vector<double> in){par=in;}
@@ -36,8 +36,8 @@ public:
     void generate_shower(unsigned int);
     void generate_2D_shower(unsigned int);
     void write_file(){write=true;}
-    void eliminate_unphysical_entries(){eliminate_unphysical_values=true;}
     void histo_to_txt(TH2D*, string);
+    void set_fit_attempts(unsigned int in){fit_attempts=in;}
     
     TMatrixD compute_L_dual();
     TMatrixD compute_L();
@@ -55,7 +55,7 @@ private:
     // general variables
     stringstream file_name;
     bool write;
-    unsigned int fit_attempts=20;
+    unsigned int fit_attempts=100;
     unsigned int dimensions=1;
     //COMPASS and CORAL setup
     unsigned int n_modules;
@@ -95,7 +95,6 @@ private:
     OperatorID thresholdID;
     double tot_error;
     double tot_error_approx;
-    bool eliminate_unphysical_values=false;
 
     //AMP LASSO
     TVectorD amp(TVectorD *g, unsigned int counter, unsigned int counter_max);

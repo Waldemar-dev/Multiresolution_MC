@@ -47,5 +47,4 @@ void resolution_increase_test(){
     cout<<endl;
     cout<<best_values[0]<<"\t"<<best_values[1]<<"\t"<<best_values[2]<<endl;
     cout<<counter<<" data points computed"<<endl;
-    cout<<"mean squared error with g:"<<shower.get_tot_error_of_approx()<<endl;
 }

@@ -537,17 +537,6 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     TVectorD start_value(L_dual * high_res_approximation);
     TVectorD algo3_solution(algorithm3(start_value, high_res_approximation, 0, 100));
 
-    if (eliminate_unphysical_values)
-    {
-        for (uint i = 0; i < algo3_solution.GetNrows(); i++)
-        {
-            double temp_entry = algo3_solution[i];
-            if (temp_entry < 0)
-            {
-                algo3_solution[i] = 0;
-            }
-        }
-    }
     if (enlargement == 4 || enlargement == 2)
     {
         TH1D *algo3_histo = new TH1D("algorithm3", "Solution of algorithm 3;x/mm", algo3_solution.GetNrows(), x_min, x_max);
@@ -1280,7 +1269,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
                     unsigned int y_bin=i/(n_modules*enlargement);
                     double x = (x_max - x_min - bin_length) * x_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
                     double y = (x_max - x_min - bin_length) * y_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
-                    best_f_fit->SetPoint(i, x + bin_length / 2.0, y+bin_length/2.0, minimizer->X()[i]);
+                    best_f_fit->SetPoint(i, x + bin_length / 2.0-1, y+bin_length/2.0-1, minimizer->X()[i]);
                     best_f_fit->SetPointError(i, bin_length/2.0, bin_length/2.0, minimizer->Errors()[i]);
                     best_f_vec[i]=minimizer->X()[i];
                     epsilon_best_chi_sq[i]=minimizer->Errors()[i];
@@ -1308,6 +1297,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     best_f_fit->Write("best red chi sq f");
     debiased_best_f_integral->Write("best red chi sq NCDF");
     cout<<"mean squared error of best f int="<<mse_best_f_int<<endl;
+    cout << "red chi squared=" << best_chi_squared << endl;
     TGraphErrors *best_red_chi_g=new TGraphErrors();
     TH1D *deviations_hist=new TH1D("dev", "distribution of nominator with 0 denominator", 100, 0,0);
     for (uint i=0;i<L2.GetNrows();i++){
