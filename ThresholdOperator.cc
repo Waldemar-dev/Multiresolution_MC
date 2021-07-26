@@ -74,7 +74,7 @@ TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
                 {
                     double pi = atan(1) * 4;
                     double acosTerm=acos(Gamma);
-                    if (isnan(acosTerm) && Gamma>=1){
+                    if (std::isnan(acosTerm) && Gamma>=1){
                         acosTerm=0;
                     }
                     double eta0 = (acosTerm) / 3.0;
@@ -83,7 +83,7 @@ TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
                     double solution1 = (2 * sqrt(a * a - 3 * b) * cos(eta0) - a) / 3.0;
                     double solution2 = (2 * sqrt(a * a - 3 * b) * cos(eta1) - a) / 3.0;
                     double solution3 = (2 * sqrt(a * a - 3 * b) * cos(eta2) - a) / 3.0;
-                    if (isnan(solution1)){abort();}
+                    if (std::isnan(solution1)){abort();}
                     if (id == Munich1)
                     {
                         thresholded_wavelet_coefficients.push_back(solution1);
@@ -100,7 +100,7 @@ TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
                 else if (delta > 0 && p < 0)
                 {
                     double acoshTerm=acosh(abs(Gamma));
-                    if (isnan(acoshTerm) && Gamma<=1){
+                    if (std::isnan(acoshTerm) && Gamma<=1){
                         acoshTerm=0;
                     }
                     double eta = acoshTerm / 3.0;

@@ -26,7 +26,7 @@ double threshold_function(double *x, double *par)
         {
             double pi = atan(1) * 4;
             double acosTerm = acos(Gamma);
-            if (isnan(acosTerm) && Gamma >= 1)
+            if (std::isnan(acosTerm) && Gamma >= 1)
             {
                 acosTerm = 0;
             }
@@ -52,7 +52,7 @@ double threshold_function(double *x, double *par)
         else if (delta > 0 && p < 0)
         {
             double acoshTerm = acosh(abs(Gamma));
-            if (isnan(acoshTerm) && Gamma <= 1)
+            if (std::isnan(acoshTerm) && Gamma <= 1)
             {
                 acoshTerm = 0;
             }
@@ -71,7 +71,7 @@ double threshold_function(double *x, double *par)
             abort();
         }
     }
-    if (isnan(result))
+    if (std::isnan(result))
     {
         cout << "result is nan" << endl;
         abort();
