@@ -1031,7 +1031,9 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     for (uint i = 0; i < enlargement*enlargement; i++)
     {
         string name = "Shooting at position " + to_string(i) + " (CORAL);x/mm";
-        TH2D hist_temp("Deposition", name.c_str(), n_modules, x_min, x_max, n_modules, x_min,x_max);
+        stringstream th2d_name;
+        th2d_name<<"Deposition "<<to_string(i);
+        TH2D hist_temp(th2d_name.str().c_str(), name.c_str(), n_modules, x_min, x_max, n_modules, x_min,x_max);
         deposition_histograms_2d.push_back(hist_temp);
     }
     deposition_histograms_2d.shrink_to_fit();
