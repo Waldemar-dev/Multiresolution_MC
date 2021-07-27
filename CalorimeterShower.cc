@@ -968,10 +968,13 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     for (uint i = 0; i < next_x.GetNrows(); i++)
     {
         double temp = 0;
-        for (uint a = 0; a < next_z.GetNrows(); a++)
-        {
+        tbb::parallel_for(0, next_z.GetNrows(),[&](int a){
             temp += L[a][i] * next_z[a] + L[a][i] * L[a][i] * (*last_x)[i];
-        }
+        });
+        // for (uint a = 0; a < next_z.GetNrows(); a++)
+        // {
+        //     temp += L[a][i] * next_z[a] + L[a][i] * L[a][i] * (*last_x)[i];
+        // }
         if (temp > variance)
         {
             next_x[i] = temp - variance;
