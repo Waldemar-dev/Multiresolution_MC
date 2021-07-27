@@ -935,7 +935,7 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
         L=compute_L2();
     }
     TMatrixD L_T(L.GetNcols(), L.GetNrows());
-    cout << "counter=" << counter << endl;
+    cout << "amp iteration=" << counter << endl;
     L_T.Transpose(L);
     ThresholdOperator thresholdOperator(Positive, Haar);
     lambda = gamma * thresholdOperator.compute_threshold(x);
@@ -949,10 +949,13 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
             for (uint j = 0; j < last_x->GetNrows(); j++)
             {
                 double temp_arg = 0;
-                for (uint d = 0; d < next_z.GetNrows(); d++)
-                {
+                parallel_for(0,next_z.GetNrows(), [&](int d){
                     temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
-                }
+                });
+                // for (uint d = 0; d < next_z.GetNrows(); d++)
+                // {
+                //     temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
+                // }
                 if (temp_arg > gamma_threshold)
                 {
                     next_z[b] = next_z[b] + L[b][j] * L[c][j] * (*z)[c];
