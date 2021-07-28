@@ -322,7 +322,7 @@ TMatrixD CalorimeterShower::compute_L()
     for (uint i = 0; i <= index / 2; i++)
     {
         result[0][i] = 1.0 / enlargement;
-        if (n_modules * enlargement - i < result.GetNrows())
+        if ((int)(n_modules * enlargement - i) < result.GetNrows())
         {
             result[0][n_modules * enlargement - i] = 1.0 / enlargement;
         }
@@ -430,29 +430,29 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
             controlHist->Fill(r);
             hist_fine->Fill(r);
         }
-        for (uint i = 0; i < deposition_histograms[it->first].GetNbinsX(); i++)
+        for (int i = 0; i < deposition_histograms[it->first].GetNbinsX(); i++)
         {
             deposition_histograms[it->first].SetBinContent(i + 1, deposition_histograms[it->first].GetBinContent(i + 1) / (double)n_events * energy);
         }
     }
-    for (uint i = 0; i < controlHist->GetNbinsX(); i++)
+    for (int i = 0; i < controlHist->GetNbinsX(); i++)
     {
         controlHist->SetBinContent(i + 1, controlHist->GetBinContent(i + 1) / ((double)n_events * targets.size()) * energy);
     }
-    for (uint i = 0; i < hist_fine->GetNbinsX(); i++)
+    for (int i = 0; i < hist_fine->GetNbinsX(); i++)
     {
         hist_fine->SetBinContent(i + 1, hist_fine->GetBinContent(i + 1) / ((double)n_events * targets.size()) * energy);
     }
     TVectorD coral_vec(hist_fine->GetNbinsX());
 
-    for (uint i = 0; i < coral_vec.GetNrows(); i++)
+    for (int i = 0; i < coral_vec.GetNrows(); i++)
     {
         coral_vec[i] = hist_fine->GetBinContent(i + 1);
     }
     TVectorD coral_g(L * coral_vec);
     TH1D *coral_g_hist = new TH1D("L*coral", "CORAL cross check;x/mm", coral_g.GetNrows(), x_min, x_max);
     coral_g_hist->SetLineColor(kGreen+1);
-    for (uint i = 0; i < coral_g.GetNrows(); i++)
+    for (int i = 0; i < coral_g.GetNrows(); i++)
     {
         coral_g_hist->SetBinContent(i + 1, coral_g[i]);
     }
@@ -463,10 +463,10 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
         controlHist->Write();
     }
 
-    for (uint i = 1; i <= controlHist->GetNbinsX(); i++)
+    for (int i = 1; i <= controlHist->GetNbinsX(); i++)
     {
         double tempSum = 0;
-        for (uint j = 1; j <= i; j++)
+        for (int j = 1; j <= i; j++)
         {
             tempSum += controlHist->GetBinContent(j);
         }
@@ -502,7 +502,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     TGraphErrors *g_graph = new TGraphErrors(epsilon.GetNrows());
     g_graph->SetTitle("Approximation (g);x/mm;E/GeV");
     double bin_length = (x_max - x_min) / epsilon.GetNrows();
-    for (uint i = 0; i < epsilon.GetNrows(); i++)
+    for (int i = 0; i < epsilon.GetNrows(); i++)
     {
         epsilon[i] = sigmaE_cell(i, &high_res_approximation)/enlargement;
         double x = (x_max - x_min - bin_length) * i / (double)epsilon.GetNrows() + x_min + bin_length / 2.0;
@@ -546,7 +546,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
         TH1D *high_res_approximation_int = new TH1D("approx_integral", "Integral of g;x/mm", high_res_approximation.GetNrows(), x_min, x_max);
         double algo3_sum = 0;
         double high_res_approx_sum = 0;
-        for (uint i = 0; i < algo3_solution.GetNrows(); i++)
+        for (int i = 0; i < algo3_solution.GetNrows(); i++)
         {
             algo3_histo->SetBinContent(i + 1, algo3_solution[i]);
             algo3_sum += algo3_solution[i];
@@ -560,7 +560,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
             algo3_histo->Write();
         }
 
-        for (uint i = 0; i < algo3_solution.GetNrows(); i++)
+        for (int i = 0; i < algo3_solution.GetNrows(); i++)
         {
             algo3Integral->SetBinContent(i + 1, algo3Integral->GetBinContent(i + 1) / algo3_sum);
             high_res_approximation_int->SetBinContent(i + 1, high_res_approximation_int->GetBinContent(i + 1) / high_res_approx_sum);
@@ -575,7 +575,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
         tot_error_approx = 0;
         double upper_error = 0;
         double lower_error = 0;
-        for (uint i = 0; i < algo3Integral->GetNbinsX(); i++)
+        for (int i = 0; i < algo3Integral->GetNbinsX(); i++)
         {
             //tot_error += pow(algo3_histo->GetBinContent(i) - hist_fine->GetBinContent(i), 2);
             tot_error += pow(algo3Integral->GetBinContent(i + 1) - cdf_fine->GetBinContent(i + 1), 2);
@@ -595,13 +595,13 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     TH1D *ampIntegral = new TH1D("ampIntegral", "Integral of AMP;x/mm", amp_solution.GetNrows(), x_min, x_max);
     ampIntegral->SetLineColor(kRed + 2);
     double amp_norm = 0;
-    for (uint i = 0; i < amp_solution.GetNrows(); i++)
+    for (int i = 0; i < amp_solution.GetNrows(); i++)
     {
         amp_norm += amp_solution[i];
         amp_histo->SetBinContent(i + 1, amp_solution[i]);
     }
     double amp_sum = 0;
-    for (uint i = 0; i < amp_solution.GetNrows(); i++)
+    for (int i = 0; i < amp_solution.GetNrows(); i++)
     {
         amp_sum += amp_solution[i];
         ampIntegral->SetBinContent(i + 1, amp_sum / amp_norm);
@@ -638,7 +638,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     double mse_best_f_int=0;
     default_random_engine generator;
     vector<normal_distribution<double>> distributions;
-    for (uint i = 0; i < epsilon.GetNrows(); i++)
+    for (int i = 0; i < epsilon.GetNrows(); i++)
     {
         normal_distribution<double> distribution(amp_solution[i], sqrt(get_variance()));
         distributions.push_back(distribution);
@@ -647,7 +647,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     while (counter < fit_attempts)
     {
         cout << "counter=" << counter << endl;
-        for (uint i = 0; i < epsilon.GetNrows(); i++)
+        for (int i = 0; i < epsilon.GetNrows(); i++)
         {
             stringstream name;
             name << "f" << to_string(i);
@@ -674,7 +674,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
             if (temp_chi_sq < min_chi_squared)
             {
                 double debiased_sum = 0;
-                for (uint i = 0; i < epsilon.GetNrows(); i++)
+                for (int i = 0; i < epsilon.GetNrows(); i++)
                 {
                     double x = (x_max - x_min - bin_length) * i / (double)epsilon.GetNrows() + x_min + bin_length / 2.0;
                     min_f_fit->SetPoint(i, x + bin_length / 2.0, minimizer->X()[i]);
@@ -686,7 +686,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
                 }
                 
                 mse_min_f_int=0;
-                for (uint i = 0; i < debiased_min_f_integral->GetNbinsX(); i++)
+                for (int i = 0; i < debiased_min_f_integral->GetNbinsX(); i++)
                 {
                     debiased_min_f_integral->SetBinContent(i + 1, debiased_min_f_integral->GetBinContent(i + 1) / debiased_sum);
                     mse_min_f_int+=pow(cdf_fine->GetBinContent(i+1)-debiased_min_f_integral->GetBinContent(i + 1),2);
@@ -697,7 +697,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
             if (abs(temp_chi_sq - 1) < abs(best_chi_squared - 1))
             {
                 double debiased_sum = 0;
-                for (uint i = 0; i < epsilon.GetNrows(); i++)
+                for (int i = 0; i < epsilon.GetNrows(); i++)
                 {
                     double x = (x_max - x_min - bin_length) * i / (double)epsilon.GetNrows() + x_min + bin_length / 2.0;
                     best_f_fit->SetPoint(i, x + bin_length / 2.0, minimizer->X()[i]);
@@ -707,7 +707,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
                     debiased_best_f_integral->SetBinContent(i + 1, debiased_sum);
                 }
                 mse_best_f_int=0;
-                for (uint i = 0; i < debiased_best_f_integral->GetNbinsX(); i++)
+                for (int i = 0; i < debiased_best_f_integral->GetNbinsX(); i++)
                 {
                     debiased_best_f_integral->SetBinContent(i + 1, debiased_best_f_integral->GetBinContent(i + 1) / debiased_sum);
                     mse_best_f_int+=pow(cdf_fine->GetBinContent(i+1)-debiased_best_f_integral->GetBinContent(i + 1),2);
@@ -728,14 +728,14 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     cout<<"mean squared error of best f int="<<mse_best_f_int<<endl;
     TGraphErrors *min_red_chi_g=new TGraphErrors();
     TGraphErrors *best_red_chi_g=new TGraphErrors();
-    for (uint i=0;i<L.GetNrows();i++){
+    for (int i=0;i<L.GetNrows();i++){
         double bin_length = (x_max - x_min) / L.GetNrows();
         double x = (x_max - x_min - bin_length) * i / (double)L.GetNrows() + x_min + bin_length / 2.0;
         double min_chi_sq_value=0;
         double best_chi_sq_value=0;
         double min_chi_sq_error=0;
         double best_chi_sq_error=0;
-        for (uint j=0;j<L.GetNcols();j++){
+        for (int j=0;j<L.GetNcols();j++){
             min_chi_sq_value+=L[i][j]*min_f_fit->GetY()[j];
             min_chi_sq_error+=pow(L[i][j]*epsilon_min_chi_sq[j],2);
             best_chi_sq_value+=L[i][j]*best_f_fit->GetY()[j];
@@ -942,14 +942,14 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     double next_gamma_threshold = 0;
     double threshold = lambda + gamma_threshold;
     TVectorD next_z((*g) - L * (*x));
-    for (uint b = 0; b < next_z.GetNrows(); b++)
+    for (int b = 0; b < next_z.GetNrows(); b++)
     {
-        for (uint c = 0; c < next_z.GetNrows(); c++)
+        for (int c = 0; c < next_z.GetNrows(); c++)
         {
-            for (uint j = 0; j < last_x->GetNrows(); j++)
+            for (int j = 0; j < last_x->GetNrows(); j++)
             {
                 double temp_arg = 0;
-                parallel_for(0,next_z.GetNrows(), [&](int d){
+                tbb::parallel_for(0,next_z.GetNrows(), [&](int d){
                     temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
                 });
                 // for (uint d = 0; d < next_z.GetNrows(); d++)
@@ -968,7 +968,7 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     cout << "next_gamma_threshold=" << next_gamma_threshold << endl;
     variance = next_gamma_threshold;
     TVectorD next_x(L_T * next_z);
-    for (uint i = 0; i < next_x.GetNrows(); i++)
+    for (int i = 0; i < next_x.GetNrows(); i++)
     {
         double temp = 0;
         tbb::parallel_for(0, next_z.GetNrows(),[&](int a){
@@ -1074,9 +1074,9 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
             controlHist->Fill(x,y,1);
             hist_fine->Fill(x,y,1);
         }
-        for (uint i = 0; i < deposition_histograms_2d[it->first].GetNbinsX(); i++)
+        for (int i = 0; i < deposition_histograms_2d[it->first].GetNbinsX(); i++)
         {
-            for (uint j=0;j<deposition_histograms_2d[it->first].GetNbinsY();j++){
+            for (int j=0;j<deposition_histograms_2d[it->first].GetNbinsY();j++){
                 deposition_histograms_2d[it->first].SetBinContent(i + 1, j+1, deposition_histograms_2d[it->first].GetBinContent(i + 1, j+1) / (double)n_events * energy);
             }
         }
@@ -1084,24 +1084,24 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
         file_name<<"deposition"<<to_string(it->first)<<".dat";
         histo_to_txt(&(deposition_histograms_2d[it->first]),file_name.str());
     }
-    for (uint i = 0; i < controlHist->GetNbinsX(); i++)
+    for (int i = 0; i < controlHist->GetNbinsX(); i++)
     {
-        for (uint j=0;j<controlHist->GetNbinsY();j++){
-            controlHist->SetBinContent(i + 1,j+1, controlHist->GetBinContent(i + 1,j+1) / ((double)n_events) * energy);
+        for (int j=0;j<controlHist->GetNbinsY();j++){
+            controlHist->SetBinContent(i + 1,j+1, controlHist->GetBinContent(i + 1,j+1) / ((double)(n_events*targets.size())) * energy);
         }
     }
-    for (uint i = 0; i < hist_fine->GetNbinsX(); i++)
+    for (int i = 0; i < hist_fine->GetNbinsX(); i++)
     {
-        for (uint j=0;j<hist_fine->GetNbinsX();j++){
-            hist_fine->SetBinContent(i + 1,j+1, hist_fine->GetBinContent(i + 1,j+1) / ((double)n_events) * energy);
+        for (int j=0;j<hist_fine->GetNbinsX();j++){
+            hist_fine->SetBinContent(i + 1,j+1, hist_fine->GetBinContent(i + 1,j+1) / ((double)(n_events*targets.size())) * energy);
         }
     }
     TVectorD coral_vec(hist_fine->GetNbinsX()*hist_fine->GetNbinsY());
 
     unsigned int coral_vec_counter=0;
-    for (uint i = 0; i < hist_fine->GetNbinsX(); i++)
+    for (int i = 0; i < hist_fine->GetNbinsX(); i++)
     {
-        for (uint j=0;j<hist_fine->GetNbinsY();j++){
+        for (int j=0;j<hist_fine->GetNbinsY();j++){
             coral_vec[coral_vec_counter] = hist_fine->GetBinContent(i + 1, j+1);
             coral_vec_counter++;
         }
@@ -1110,7 +1110,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     TVectorD coral_g(L2 * coral_vec);
     TH1D *coral_g_hist = new TH1D("L*coral", "CORAL cross check;x/mm", coral_g.GetNrows(), 0, coral_g.GetNrows());
     coral_g_hist->SetLineColor(kGreen+1);
-    for (uint i = 0; i < coral_g.GetNrows(); i++)
+    for (int i = 0; i < coral_g.GetNrows(); i++)
     {
         coral_g_hist->SetBinContent(i + 1, coral_g[i]);
     }
@@ -1120,12 +1120,12 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     {
         controlHist->Write();
     }
-    for (uint i = 1; i <= controlHist->GetNbinsX(); i++)
+    for (int i = 1; i <= controlHist->GetNbinsX(); i++)
     {
-        for (uint j=1;j<=controlHist->GetNbinsY();j++){
+        for (int j=1;j<=controlHist->GetNbinsY();j++){
             double tempSum = 0;
-            for (uint k=1;k<=i;k++){
-                for (uint l=1;l<=j;l++){
+            for (int k=1;k<=i;k++){
+                for (int l=1;l<=j;l++){
                     tempSum += controlHist->GetBinContent(k,l);
                 }
             }
@@ -1150,15 +1150,15 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
             double x_bin=enlargement*(1+i)-x_offset;
             for (uint j=0;j<n_modules;j++){       
                 double y_bin=enlargement*(j+1)-y_offset;
-                high_res_hist->SetBinContent( x_bin+1,y_bin+1, deposition_histograms_2d[k].GetBinContent(i+1,j+1));
+                high_res_hist->SetBinContent( x_bin,y_bin, deposition_histograms_2d[k].GetBinContent(i+1,j+1)/pow(enlargement,dimensions));
            }
         }
     }
     high_res_hist->Write();
     // rewriting high resolution approximation in vector notation
     TVectorD high_res_approximation(L2.GetNcols());
-    for (uint i=0;i<high_res_hist->GetNbinsX();i++){
-        for (uint j=0;j<high_res_hist->GetNbinsY();j++){
+    for (int i=0;i<high_res_hist->GetNbinsX();i++){
+        for (int j=0;j<high_res_hist->GetNbinsY();j++){
             high_res_approximation[i*high_res_hist->GetNbinsY()+j]=high_res_hist->GetBinContent(i+1,j+1);
         }
     }
@@ -1167,7 +1167,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     g_graph->SetTitle("Approximation (g);x;E/GeV");
     double bin_length = (x_max - x_min) / (double)(n_modules*enlargement);
     unsigned int non_zero_epsilon_entries=0;
-    for (uint i = 0; i < epsilon.GetNrows(); i++)
+    for (int i = 0; i < epsilon.GetNrows(); i++)
     {
         epsilon[i] = sigmaE_cell(i, &high_res_approximation)/enlargement;
         if (epsilon[i]!=0){
@@ -1198,12 +1198,12 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
         cdf_fine->Write();
     }
     //Intermediate step: Apply AMP to get LASSO solution and error
-    TVectorD amp_solution(amp(&high_res_approximation, 0,1));
+    TVectorD amp_solution(amp(&high_res_approximation, 0,0));
     TH2D *amp_histo = new TH2D("amp", "Solution of AMP", n_modules*enlargement, x_min, x_max, n_modules*enlargement, x_min, x_max);
     amp_histo->SetLineColor(kRed + 2);
     TH2D *ampIntegral = new TH2D("ampIntegral", "Integral of AMP", n_modules*enlargement, x_min, x_max, n_modules*enlargement, x_min, x_max);
     ampIntegral->SetLineColor(kRed + 2);
-    for (uint i = 0; i < amp_solution.GetNrows(); i++)
+    for (int i = 0; i < amp_solution.GetNrows(); i++)
     {
         unsigned int x_bin=i / (n_modules*enlargement);
         unsigned int y_bin=i%(n_modules*enlargement);
@@ -1216,7 +1216,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(1000000);
-    minimizer->SetTolerance(0.1);
+    minimizer->SetTolerance(0.2);
     minimizer->SetPrintLevel(2);
     unsigned int numbOfArguments = epsilon.GetNrows();
     ROOT::Math::Functor f = ROOT::Math::Functor(chisquare_data, numbOfArguments); // function of type double
@@ -1226,24 +1226,24 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
 
     double best_chi_squared = DBL_MAX;
     TGraph2DErrors *best_f_fit = new TGraph2DErrors(epsilon.GetNrows());
+    TH2D *temp_hist=new TH2D("best fit histogram", "debiased f fit;x/mm;y/mm;E/GeV", n_modules*enlargement,x_min,x_max, n_modules, x_min, x_max);
     best_f_fit->SetTitle("debiased f fit;x/mm;y/mm;E/GeV");
     TVectorD best_f_vec(pow(n_modules*enlargement,2));
-    TH2D *debiased_best_f_integral = new TH2D("debiased_best_f", "debiased f NCDF;x/mm;y/mm;E/GeV", n_modules * enlargement, x_min, x_max, n_modules * enlargement, x_min, x_max);
-    debiased_best_f_integral->SetLineColor(kBlack);
     TVectorD epsilon_best_chi_sq(pow(n_modules * enlargement,dimensions));
-    double mse_best_f_int=0;
     default_random_engine generator;
     vector<normal_distribution<double>> distributions;
-    for (uint i = 0; i < epsilon.GetNrows(); i++)
+    for (int i = 0; i < epsilon.GetNrows(); i++)
     {
         normal_distribution<double> distribution(amp_solution[i], sqrt(get_variance()));
         distributions.push_back(distribution);
     }
     distributions.shrink_to_fit();
+    TH1D *status_hist=new TH1D("status_hist", "Minimizer status",5,0,0);
     while (counter < fit_attempts)
     {
-        cout << "counter=" << counter << endl;
-        for (uint i = 0; i < epsilon.GetNrows(); i++)
+        cout<<endl;
+        cout << "fit attempt=" << counter << endl;
+        for (int i = 0; i < epsilon.GetNrows(); i++)
         {
             stringstream name;
             name << "f" << to_string(i);
@@ -1256,72 +1256,86 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
             //minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
         }
         minimizer->Minimize();
+        status_hist->Fill(minimizer->Status());
         counter++;
         if (minimizer->Status() <= 1)
         {
             double bin_length = (x_max - x_min) / (n_modules*enlargement);
-            vector<double> args_vec(n_modules * enlargement, 0);
-            for (uint i = 0; i < n_modules * enlargement; i++)
+            vector<double> args_vec(epsilon.GetNrows(), 0);
+            for (uint i = 0; i < args_vec.size(); i++)
             {
                 args_vec[i] = minimizer->X()[i];
             }
             double *args = args_vec.data();
-            double temp_chi_sq = chisquare_result(args) / pow(non_zero_epsilon_entries,dimensions);
+            double temp_chi_sq = chisquare_result(args) / non_zero_epsilon_entries;
+            cout<<"red chi sq="<<temp_chi_sq<<endl;
             if (abs(temp_chi_sq - 1) < abs(best_chi_squared - 1))
             {
-                double debiased_sum = 0;
-                mse_best_f_int=0;
-                for (uint i = 0; i < epsilon.GetNrows(); i++)
+                for (int i = 0; i < epsilon.GetNrows(); i++)
                 {
                     unsigned int x_bin=i%(n_modules*enlargement);
-                    unsigned int y_bin=i/(n_modules*enlargement);
+                    unsigned int y_bin=floor(i/(n_modules*enlargement));
                     double x = (x_max - x_min - bin_length) * x_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
                     double y = (x_max - x_min - bin_length) * y_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
-                    best_f_fit->SetPoint(i, x + bin_length / 2.0-1, y+bin_length/2.0-1, minimizer->X()[i]);
+                    best_f_fit->SetPoint(i, x + bin_length / 2.0, y+bin_length/2.0, minimizer->X()[i]);
                     best_f_fit->SetPointError(i, bin_length/2.0, bin_length/2.0, minimizer->Errors()[i]);
                     best_f_vec[i]=minimizer->X()[i];
                     epsilon_best_chi_sq[i]=minimizer->Errors()[i];
-                    debiased_sum+=minimizer->X()[i];
+                    temp_hist->SetBinContent(x_bin+1,y_bin+1,minimizer->X()[i]);
+                    cout<<i<<"\t"<<x_bin<<"\t"<<y_bin<<endl;
                 }
-                for (uint i=0;i<debiased_best_f_integral->GetNbinsX();i++){
-                    for (uint j=0;j<debiased_best_f_integral->GetNbinsY();j++){
-                        double temp_sum=0;
-                        for (uint i2=0;i2<i;i2++){
-                            for (uint j2=0;j2<j;j2++){
-                                unsigned int temp_index=i2*debiased_best_f_integral->GetNbinsY()+j2;
-                                temp_sum+=minimizer->X()[temp_index];
-                            }
-                        }
-                        debiased_best_f_integral->SetBinContent(i + 1, j+1, temp_sum/debiased_sum);
-                        mse_best_f_int+=pow(cdf_fine->GetBinContent(i+1)-debiased_best_f_integral->GetBinContent(i + 1, j + 1),2);
-                    }
-                }
-                mse_best_f_int/=epsilon.GetNrows();
                 best_chi_squared = temp_chi_sq;
                 cout << "best_chi_squared=" << best_chi_squared << endl;
+                counter=fit_attempts;
+                fit_attempts=0;//delete
             }
         }
     }
+
+    best_f_fit->GetXaxis()->Set(n_modules*enlargement,x_min,x_max);
+    best_f_fit->GetYaxis()->Set(n_modules*enlargement, x_min, x_max);
+    cout<<best_f_fit->GetHistogram()->GetNbinsX()<<"\t"<<best_f_fit->GetHistogram()->GetNbinsY()<<endl;
+    temp_hist->Write("temp_hist");
+    TH2D *debiased_best_f_integral = new TH2D("debiased_best_f", "debiased f NCDF;x/mm;y/mm;E/GeV", temp_hist->GetNbinsX(), x_min, x_max, temp_hist->GetNbinsY(), x_min, x_max);
+    debiased_best_f_integral->SetLineColor(kBlack);
+    double mse_best_f_int=0;
+    for (int i=0;i<temp_hist->GetNbinsX();i++){
+        for (int j=0;j<temp_hist->GetNbinsY();j++){
+            double temp_sum=0;
+            for (int k=1;k<=i;k++){
+                for (int l=1;l<=j;l++){
+                    temp_sum+=temp_hist->GetBinContent(k,l);
+                }
+            }
+            debiased_best_f_integral->SetBinContent(i+1, j+1, temp_sum/temp_hist->Integral());
+            mse_best_f_int+=pow(cdf_fine->GetBinContent(i+1, j+1)-debiased_best_f_integral->GetBinContent(i + 1, j + 1),2);
+        }
+    }
+    mse_best_f_int/=epsilon.GetNrows();
     best_f_fit->Write("best red chi sq f");
+    status_hist->Write();
     debiased_best_f_integral->Write("best red chi sq NCDF");
     cout<<"mean squared error of best f int="<<mse_best_f_int<<endl;
     cout << "red chi squared=" << best_chi_squared << endl;
     TGraphErrors *best_red_chi_g=new TGraphErrors();
+    TVectorD best_red_chi_g_vec(L2*best_f_vec);
     TH1D *deviations_hist=new TH1D("dev", "distribution of nominator with 0 denominator", 100, 0,0);
-    for (uint i=0;i<L2.GetNrows();i++){
+    for (int i=0;i<L2.GetNrows();i++){
         double bin_length = (x_max - x_min) / L2.GetNrows();
-        double x = (x_max - x_min - bin_length) * i / (double)L2.GetNrows() + x_min + bin_length / 2.0;
         double best_chi_sq_value=0;
         double best_chi_sq_error=0;
-        for (uint j=0;j<L2.GetNcols();j++){
-            best_chi_sq_value+=L2[i][j]*best_f_fit->GetY()[j];
+        for (int j=0;j<L2.GetNcols();j++){
+            unsigned int point_number=i*L2.GetNcols()+j;
+            double x,y,z;
+            best_f_fit->GetPoint(point_number,x,y,z);
+            best_chi_sq_value+=L2[i][j]*z;
             best_chi_sq_error+=pow(L2[i][j]*epsilon_best_chi_sq[j],2);
         }
         best_chi_sq_error=sqrt(best_chi_sq_error);
-        best_red_chi_g->SetPoint(i,x+bin_length/2.0,best_chi_sq_value);
+        best_red_chi_g->SetPoint(i,i,best_red_chi_g_vec[i]);
         best_red_chi_g->SetPointError(i, bin_length / 2.0,best_chi_sq_error);
         if (epsilon[i]==0){
-            deviations_hist->Fill(best_chi_sq_value);
+            deviations_hist->Fill(best_red_chi_g_vec[i]);
         }
     }
     best_red_chi_g->Write("best red chi sq g");
@@ -1332,10 +1346,10 @@ TMatrixD CalorimeterShower::compute_L2(){
     TMatrixD Lx(compute_L());
     TMatrixD Ly(Lx);
     TMatrixD result(Lx.GetNrows()*Ly.GetNrows(),Lx.GetNcols()*Ly.GetNcols());
-    for (uint i_x=0;i_x<Lx.GetNrows();i_x++){
-        for (uint i_y=0;i_y<Ly.GetNrows();i_y++){
-            for (uint j_x=0;j_x<Lx.GetNcols();j_x++){
-                for (uint j_y=0;j_y<Ly.GetNcols();j_y++){
+    for (int i_x=0;i_x<Lx.GetNrows();i_x++){
+        for (int i_y=0;i_y<Ly.GetNrows();i_y++){
+            for (int j_x=0;j_x<Lx.GetNcols();j_x++){
+                for (int j_y=0;j_y<Ly.GetNcols();j_y++){
                     result[i_x*Ly.GetNrows()+i_y][j_x*Ly.GetNcols()+j_y]=Lx[i_x][j_x]*Ly[i_y][j_y];
                 }
             }
@@ -1356,8 +1370,8 @@ void CalorimeterShower::generate_shower(unsigned int n_events_, unsigned int dim
 void CalorimeterShower::histo_to_txt(TH2D *in, string file_name){
     ofstream file;
     file.open(file_name);
-    for (uint i=0;i<in->GetNbinsX();i++){
-        for (uint j=0;j<in->GetNbinsY();j++){
+    for (int i=0;i<in->GetNbinsX();i++){
+        for (int j=0;j<in->GetNbinsY();j++){
             file<<in->GetBinContent(i+1,j+1)<<"\t";
         }
         file<<endl;

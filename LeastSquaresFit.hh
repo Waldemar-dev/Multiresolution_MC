@@ -15,10 +15,10 @@ function<double(const double *)> chisquare(TMatrixD *A, TVectorD *b, TVectorD *e
     function<double(const double *)> out = [A, b, epsilon](const double *args)
         -> double {
         double chisquare = 0;
-        for (uint i = 0; i < b->GetNrows(); i++)
+        for (int i = 0; i < b->GetNrows(); i++)
         {
             double scalar_product = 0;
-            for (uint j = 0; j < A->GetNcols(); j++)
+            for (int j = 0; j < A->GetNcols(); j++)
             {
                 scalar_product += (*A)[i][j] * args[j];
             }
