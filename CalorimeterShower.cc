@@ -1207,7 +1207,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     {
         unsigned int x_bin=i / (n_modules*enlargement);
         unsigned int y_bin=i%(n_modules*enlargement);
-        amp_histo->SetBinContent(x_bin,y_bin, amp_solution[i]);
+        amp_histo->SetBinContent(x_bin+1,y_bin+1, amp_solution[i]);
     }
     amp_histo->Write();
     cout << "variance=" << get_variance() << endl;
@@ -1281,7 +1281,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
                     best_f_fit->SetPointError(i, bin_length/2.0, bin_length/2.0, minimizer->Errors()[i]);
                     best_f_vec[i]=minimizer->X()[i];
                     epsilon_best_chi_sq[i]=minimizer->Errors()[i];
-                    temp_hist->SetBinContent(x_bin+1,y_bin+1,minimizer->X()[i]);
+                    temp_hist->Fill(x,y,minimizer->X()[i]);
                     cout<<i<<"\t"<<x_bin<<"\t"<<y_bin<<endl;
                 }
                 best_chi_squared = temp_chi_sq;
