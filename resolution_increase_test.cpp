@@ -10,7 +10,7 @@ void resolution_increase_test(){
     double sigma_max=pow(10,7);
     double gamma_min=pow(10,-6);
     double sigma_min=pow(10,-6);
-    unsigned int mag=2;
+    unsigned int mag=4;
     unsigned int n_events = 3 * pow(10, 4);
     unsigned int n_modules=7;
     unsigned int dim=2;
@@ -44,7 +44,7 @@ void resolution_increase_test(){
     shower.generate_shower(n_events,dim);
     best_values[2]=shower.get_tot_error();
     
-    cout<<endl;
-    cout<<best_values[0]<<"\t"<<best_values[1]<<"\t"<<best_values[2]<<endl;
-    cout<<counter<<" data points computed"<<endl;
+    // cout<<endl;
+    // cout<<best_values[0]<<"\t"<<best_values[1]<<"\t"<<best_values[2]<<endl;
+    // cout<<counter<<" data points computed"<<endl;
 }

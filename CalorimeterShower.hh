@@ -20,6 +20,8 @@
 #include "TVirtualFFT.h"
 #include <fstream>
 #include <tbb/parallel_for.h>
+#include <fstream>
+#include <chrono>
 
 using namespace std;
 
@@ -42,7 +44,7 @@ public:
     
     TMatrixD compute_L_dual();
     TMatrixD compute_L();
-    TMatrixD compute_L2();
+    TMatrixD compute_L2(map<uint,vector<uint> > *, map<uint,vector<uint> > *);
     vector<TMatrixD> get_H_vec(){return H_vec;}
     vector<TMatrixD> get_H_dual_vec(){return H_dual_vec;}
     map<int,double> get_mask(){return mask;}
@@ -56,7 +58,7 @@ private:
     // general variables
     stringstream file_name;
     bool write;
-    unsigned int fit_attempts=100;
+    unsigned int fit_attempts=4;
     unsigned int dimensions=1;
     //COMPASS and CORAL setup
     unsigned int n_modules;
@@ -101,5 +103,8 @@ private:
     TVectorD amp(TVectorD *g, unsigned int counter, unsigned int counter_max);
     TVectorD amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVectorD *z, double gamma_threshold, unsigned int counter, unsigned int counter_max);
     double variance;
+    unsigned int amp_iterations=0;
+
+    void compute_2D_NCDF(TH2D*, TH2D*);
 };
 #endif

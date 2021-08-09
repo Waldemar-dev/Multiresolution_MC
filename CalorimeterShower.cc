@@ -589,7 +589,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
         cout << "lower_error=" << lower_error << endl;
     }
 
-    TVectorD amp_solution(amp(&high_res_approximation, 0, 3));
+    TVectorD amp_solution(amp(&high_res_approximation, 0, amp_iterations));
     TH1D *amp_histo = new TH1D("amp", "Solution of AMP;x/mm", amp_solution.GetNrows(), x_min, x_max);
     amp_histo->SetLineColor(kRed + 2);
     TH1D *ampIntegral = new TH1D("ampIntegral", "Integral of AMP;x/mm", amp_solution.GetNrows(), x_min, x_max);
@@ -610,7 +610,8 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     ampIntegral->Write();
     cout << "variance=" << get_variance() << endl;
     //fit for f
-    function<double(const double *)> chisquare_data = chisquare(&L, &high_res_approximation, &epsilon);
+    map<uint,vector<uint> > non_zero_indices;//to do
+    function<double(const double *)> chisquare_data = chisquare(&L, &high_res_approximation, &epsilon, &non_zero_indices);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(1000000);
@@ -928,11 +929,12 @@ double CalorimeterShower::sigmaE()
 TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVectorD *z, double gamma_threshold, unsigned int counter, unsigned int counter_max)
 {
     TMatrixD L(pow(n_modules*enlargement,dimensions),pow(n_modules*enlargement,dimensions));
+    map<uint,vector<uint> > non_zero_indices, non_zero_column_row_indices;
     if (dimensions==1){
         L=compute_L();
     }
     else if (dimensions==2){
-        L=compute_L2();
+        L=compute_L2(&non_zero_indices, &non_zero_column_row_indices);
     }
     TMatrixD L_T(L.GetNcols(), L.GetNrows());
     cout << "amp iteration=" << counter << endl;
@@ -942,28 +944,43 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     double next_gamma_threshold = 0;
     double threshold = lambda + gamma_threshold;
     TVectorD next_z((*g) - L * (*x));
-    for (int b = 0; b < next_z.GetNrows(); b++)
-    {
+
+    tbb::parallel_for(0,next_z.GetNrows(), [&](int b){
         for (int c = 0; c < next_z.GetNrows(); c++)
         {
-            for (int j = 0; j < last_x->GetNrows(); j++)
+            for (map<uint,vector<uint> >::iterator it=non_zero_column_row_indices.begin();it!=non_zero_column_row_indices.end();it++)
             {
+                uint j=it->first;
                 double temp_arg = 0;
-                tbb::parallel_for(0,next_z.GetNrows(), [&](int d){
-                    temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
-                });
-                // for (uint d = 0; d < next_z.GetNrows(); d++)
-                // {
-                //     temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
-                // }
-                if (temp_arg > gamma_threshold)
+                for (vector<uint>::iterator d=it->second.begin();d!=it->second.end();d++){
+                    temp_arg += L[*d][j] * (*z)[*d] + L[*d][j] * L[*d][j] * (*last_x)[j];
+                }
+                if (temp_arg > gamma_threshold && L[b][j]!=0 && L[c][j]!=0)
                 {
                     next_z[b] = next_z[b] + L[b][j] * L[c][j] * (*z)[c];
                     next_gamma_threshold += L[b][j] * L[c][j];
                 }
             }
         }
-    }
+    });
+
+    // tbb::parallel_for(0,next_z.GetNrows(), [&](int b){
+    //     for (int c = 0; c < next_z.GetNrows(); c++)
+    //     {
+    //         for (int j = 0; j < L.GetNcols(); j++)
+    //         {
+    //             double temp_arg = 0;
+    //             for (uint d=0;d<next_z.GetNrows();d++){
+    //                 temp_arg += L[d][j] * (*z)[d] + L[d][j] * L[d][j] * (*last_x)[j];
+    //             }
+    //             if (temp_arg > gamma_threshold)
+    //             {
+    //                 next_z[b] = next_z[b] + L[b][j] * L[c][j] * (*z)[c];
+    //                 next_gamma_threshold += L[b][j] * L[c][j];
+    //             }
+    //         }
+    //     }
+    // });
     next_gamma_threshold *= threshold;
     cout << "next_gamma_threshold=" << next_gamma_threshold << endl;
     variance = next_gamma_threshold;
@@ -1012,7 +1029,8 @@ TVectorD CalorimeterShower::amp(TVectorD *g, unsigned int counter, unsigned int 
 void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     n_events = n_events_;
     write=true;
-    TMatrixD L2(compute_L2());
+    map<uint,vector<uint> > non_zero_indices, non_zero_column_row_indices;
+    TMatrixD L2(compute_L2(&non_zero_indices, &non_zero_column_row_indices));  
     TFile *my_file = new TFile(file_name.str().c_str(), "recreate");
     TF2 *f2 = new TF2("f2", "([0]*[1]/pow(x*x+y*y+[1]*[1],1.5)+[2]*[3]/pow(x*x+y*y+[3]*[3],1.5)+(1-[0]-[2])*[4]/pow(x*x+y*y+[4]*[4],1.5))/(2*TMath::Pi())",x_min,x_max,x_min,x_max);
     f2->SetParNames("a1","b1","a2","b2","b3");
@@ -1032,7 +1050,15 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     if (write){
         f2->Write();
         f2Int->Write();
+        TH2D *matrix_hist=new TH2D("matrix L","Matrix L", L2.GetNrows(), 0, L2.GetNrows(), L2.GetNcols(),0,L2.GetNcols());
+        for (uint i=0;i<L2.GetNrows();i++){
+            for (uint j=0;j<L2.GetNcols();j++){
+                matrix_hist->SetBinContent(i,j,L2[i][j]);
+            }
+        }
+        matrix_hist->Write();
     }
+
     deposition_histograms_2d.erase(deposition_histograms_2d.begin(), deposition_histograms_2d.end());
     for (uint i = 0; i < enlargement*enlargement; i++)
     {
@@ -1198,7 +1224,9 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
         cdf_fine->Write();
     }
     //Intermediate step: Apply AMP to get LASSO solution and error
-    TVectorD amp_solution(amp(&high_res_approximation, 0,0));
+    auto start = std::chrono::high_resolution_clock::now();
+    TVectorD amp_solution(amp(&high_res_approximation, 0,amp_iterations));
+    auto finish = chrono::high_resolution_clock::now();
     TH2D *amp_histo = new TH2D("amp", "Solution of AMP", n_modules*enlargement, x_min, x_max, n_modules*enlargement, x_min, x_max);
     amp_histo->SetLineColor(kRed + 2);
     TH2D *ampIntegral = new TH2D("ampIntegral", "Integral of AMP", n_modules*enlargement, x_min, x_max, n_modules*enlargement, x_min, x_max);
@@ -1212,12 +1240,12 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
     amp_histo->Write();
     cout << "variance=" << get_variance() << endl;
     //fit for f
-    function<double(const double *)> chisquare_data = chisquare(&L2, &high_res_approximation, &epsilon);
+    function<double(const double *)> chisquare_data = chisquare(&L2, &high_res_approximation, &epsilon, &non_zero_indices);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
-    minimizer->SetMaxFunctionCalls(1000000);
-    minimizer->SetTolerance(0.2);
-    minimizer->SetPrintLevel(2);
+    minimizer->SetMaxFunctionCalls(0);
+    minimizer->SetTolerance(0.1);
+    //minimizer->SetPrintLevel(2);
     unsigned int numbOfArguments = epsilon.GetNrows();
     ROOT::Math::Functor f = ROOT::Math::Functor(chisquare_data, numbOfArguments); // function of type double
     minimizer->SetFunction(f);
@@ -1226,7 +1254,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
 
     double best_chi_squared = DBL_MAX;
     TGraph2DErrors *best_f_fit = new TGraph2DErrors(epsilon.GetNrows());
-    TH2D *temp_hist=new TH2D("best fit histogram", "debiased f fit;x/mm;y/mm;E/GeV", n_modules*enlargement,x_min,x_max, n_modules, x_min, x_max);
+    TH2D *temp_hist=new TH2D("best fit histogram", "debiased f fit;x/mm;y/mm;E/GeV", n_modules*enlargement,x_min,x_max, n_modules*enlargement, x_min, x_max);
     best_f_fit->SetTitle("debiased f fit;x/mm;y/mm;E/GeV");
     TVectorD best_f_vec(pow(n_modules*enlargement,2));
     TVectorD epsilon_best_chi_sq(pow(n_modules * enlargement,dimensions));
@@ -1277,41 +1305,39 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
                     unsigned int y_bin=floor(i/(n_modules*enlargement));
                     double x = (x_max - x_min - bin_length) * x_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
                     double y = (x_max - x_min - bin_length) * y_bin / (double)(n_modules*enlargement) + x_min + bin_length / 2.0;
+                    if (isnan(minimizer->X()[i]) || isnan(minimizer->Errors()[i])){cout<<i<<"\t"<<minimizer->X()[i]<<"\t"<<minimizer->Errors()[i]<<endl;}
                     best_f_fit->SetPoint(i, x + bin_length / 2.0, y+bin_length/2.0, minimizer->X()[i]);
                     best_f_fit->SetPointError(i, bin_length/2.0, bin_length/2.0, minimizer->Errors()[i]);
                     best_f_vec[i]=minimizer->X()[i];
                     epsilon_best_chi_sq[i]=minimizer->Errors()[i];
                     temp_hist->Fill(x,y,minimizer->X()[i]);
-                    cout<<i<<"\t"<<x_bin<<"\t"<<y_bin<<endl;
                 }
                 best_chi_squared = temp_chi_sq;
                 cout << "best_chi_squared=" << best_chi_squared << endl;
-                counter=fit_attempts;
-                fit_attempts=0;//delete
             }
         }
     }
 
     best_f_fit->GetXaxis()->Set(n_modules*enlargement,x_min,x_max);
     best_f_fit->GetYaxis()->Set(n_modules*enlargement, x_min, x_max);
-    cout<<best_f_fit->GetHistogram()->GetNbinsX()<<"\t"<<best_f_fit->GetHistogram()->GetNbinsY()<<endl;
     temp_hist->Write("temp_hist");
-    TH2D *debiased_best_f_integral = new TH2D("debiased_best_f", "debiased f NCDF;x/mm;y/mm;E/GeV", temp_hist->GetNbinsX(), x_min, x_max, temp_hist->GetNbinsY(), x_min, x_max);
+    TH2D *debiased_best_f_integral = new TH2D("debiased_best_f", "debiased f NCDF;x/mm;y/mm;", temp_hist->GetNbinsX(), x_min, x_max, temp_hist->GetNbinsY(), x_min, x_max);
     debiased_best_f_integral->SetLineColor(kBlack);
     double mse_best_f_int=0;
-    for (int i=0;i<temp_hist->GetNbinsX();i++){
-        for (int j=0;j<temp_hist->GetNbinsY();j++){
+    for (int i=1;i<=temp_hist->GetNbinsX();i++){
+        for (int j=1;j<=temp_hist->GetNbinsY();j++){
             double temp_sum=0;
             for (int k=1;k<=i;k++){
                 for (int l=1;l<=j;l++){
                     temp_sum+=temp_hist->GetBinContent(k,l);
                 }
             }
-            debiased_best_f_integral->SetBinContent(i+1, j+1, temp_sum/temp_hist->Integral());
-            mse_best_f_int+=pow(cdf_fine->GetBinContent(i+1, j+1)-debiased_best_f_integral->GetBinContent(i + 1, j + 1),2);
+            debiased_best_f_integral->SetBinContent(i, j, temp_sum/temp_hist->Integral());
+            mse_best_f_int+=pow(cdf_fine->GetBinContent(i, j)-debiased_best_f_integral->GetBinContent(i, j),2);
         }
     }
     mse_best_f_int/=epsilon.GetNrows();
+    compute_2D_NCDF(temp_hist,debiased_best_f_integral);
     best_f_fit->Write("best red chi sq f");
     status_hist->Write();
     debiased_best_f_integral->Write("best red chi sq NCDF");
@@ -1338,11 +1364,17 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_){
             deviations_hist->Fill(best_red_chi_g_vec[i]);
         }
     }
+    chrono::duration<double> elapsed = finish - start;
     best_red_chi_g->Write("best red chi sq g");
     deviations_hist->Write();
+    ofstream stats_file("amp_stats_2d.dat", fstream::app);
+    if (stats_file.is_open()){
+        stats_file<<enlargement<<"\t"<<amp_iterations<<"\t"<<best_chi_squared<<"\t"<<mse_best_f_int<<"\t"<<elapsed.count()<<endl;
+    }
+    stats_file.close();
 }
 
-TMatrixD CalorimeterShower::compute_L2(){
+TMatrixD CalorimeterShower::compute_L2(map<uint,vector<uint> > *out_pairs1, map<uint,vector<uint> > *out_pairs2){
     TMatrixD Lx(compute_L());
     TMatrixD Ly(Lx);
     TMatrixD result(Lx.GetNrows()*Ly.GetNrows(),Lx.GetNcols()*Ly.GetNcols());
@@ -1351,6 +1383,20 @@ TMatrixD CalorimeterShower::compute_L2(){
             for (int j_x=0;j_x<Lx.GetNcols();j_x++){
                 for (int j_y=0;j_y<Ly.GetNcols();j_y++){
                     result[i_x*Ly.GetNrows()+i_y][j_x*Ly.GetNcols()+j_y]=Lx[i_x][j_x]*Ly[i_y][j_y];
+                    if (Lx[i_x][j_x]*Ly[i_y][j_y]!=0){
+                        if (out_pairs1->find(i_x*Ly.GetNrows()+i_y)==out_pairs1->end()){
+                            vector<uint> temp={(uint)(j_x*Ly.GetNcols()+j_y)};
+                            out_pairs1->insert(pair<uint,vector<uint> >(i_x*Ly.GetNrows()+i_y,temp));
+                        } else {
+                            (*out_pairs1)[i_x*Ly.GetNrows()+i_y].push_back(j_x*Ly.GetNcols()+j_y);
+                        }
+                        if (out_pairs2->find(j_x*Ly.GetNcols()+j_y)==out_pairs2->end()){
+                            vector<uint> temp={(uint)(i_x*Ly.GetNrows()+i_y)};
+                            out_pairs2->insert(pair<uint, vector<uint> >(j_x*Ly.GetNcols()+j_y,temp) );
+                        } else {
+                            (*out_pairs2)[j_x*Ly.GetNcols()+j_y].push_back(i_x*Ly.GetNrows()+i_y);
+                        }
+                    }
                 }
             }
         }
@@ -1377,4 +1423,23 @@ void CalorimeterShower::histo_to_txt(TH2D *in, string file_name){
         file<<endl;
     }
     file.close();
+}
+
+void CalorimeterShower::compute_2D_NCDF(TH2D *in, TH2D *out){
+    if (in->GetNbinsX()!=out->GetNbinsX() || in->GetNbinsY()!=out->GetNbinsY()){
+        cout<<"Bins do not match"<<endl;
+        abort();
+    }
+    for (uint i = 1; i <= in->GetNbinsX(); i++)
+    {
+        for (uint j=1;j<=in->GetNbinsY(); j++){
+            double temp = 0;
+            for (uint k=1;k<=i;k++){
+                for (uint l=1;l<=j;l++){
+                    temp += in->GetBinContent(k,l);
+                }
+            }
+            out->SetBinContent(i,j, temp / in->Integral());
+        }
+    }
 }
