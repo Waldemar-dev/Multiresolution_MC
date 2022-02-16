@@ -24,12 +24,16 @@ TVectorD ThresholdOperator::apply(TVectorD *x, TVectorD *sigmas){
 TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
 {
     TVectorD result(x->GetNrows());
+    cout<<__LINE__<<endl;
     DiscreteWaveletTransformation dwt(waveletID);
+    cout<<__LINE__<<endl;
     vector<double> wavelet_coefficients;
     dwt.analyse(x, &wavelet_coefficients);
+    cout<<__LINE__<<endl;
     vector<double> thresholded_wavelet_coefficients;
     if (id == Donoho)
     {
+        cout<<__LINE__<<endl;
         double threshold = get_donoho_threshold(&wavelet_coefficients, x->GetNrows());
         if (useGivenLambda)
         {
@@ -117,6 +121,7 @@ TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
             //result[i] *= (-1);
         }
     } else if (id == Positive) {
+        cout<<__LINE__<<endl;
         vector<double> x_vec;
         for (uint i=0;i<x->GetNrows();i++){
             x_vec.push_back((*x)[i]);
@@ -135,8 +140,11 @@ TVectorD ThresholdOperator::apply(TVectorD *x, vector<double> *par)
         cout<<"Threshold ID "<< id <<" not defined."<<endl;
         abort();
     }
+    cout<<__LINE__<<endl;
     thresholded_wavelet_coefficients.shrink_to_fit();
+    cout<<__LINE__<<endl;
     dwt.synthesise(&thresholded_wavelet_coefficients, &result);
+    cout<<__LINE__<<endl;
     return result;
 }
 

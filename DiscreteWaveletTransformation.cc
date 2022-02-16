@@ -48,7 +48,9 @@ void DiscreteWaveletTransformation::analyse(TVectorD *in, vector<double> *out)
     }
     for (int iter = 0; iter < J; iter++)
     {
+        cout<<__LINE__<<endl;
         dwt1(hSig, &appx_sig, &det_sig);
+        cout<<__LINE__<<endl;
         out->insert(out->begin(), det_sig.begin(), det_sig.end());
         int l_temp = det_sig.size();
         length.insert(length.begin(), l_temp);
@@ -166,8 +168,9 @@ void DiscreteWaveletTransformation::convfft(TH1D *a, vector<double> &b, vector<d
     TH1 *filter_fft_real = 0;
     TH1 *filter_fft_imag = 0;
     TVirtualFFT::SetTransform(0);
-    signal_fft_real = signal.FFT(signal_fft_real, "RE");
+    signal_fft_real = signal.FFT(signal_fft_real, "RE");//null-pointer ?!
     signal_fft_imag = signal.FFT(signal_fft_imag, "IM");
+    abort();
     vector<double> fft_real_signal(signal_fft_real->GetNbinsX(), 0);
     vector<double> fft_imag_signal(signal_fft_imag->GetNbinsX(), 0);
     for (uint i = 0; i < fft_real_signal.size(); i++)
