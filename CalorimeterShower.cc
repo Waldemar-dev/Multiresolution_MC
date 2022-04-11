@@ -1986,7 +1986,7 @@ void CalorimeterShower::lednev_fit(string plot_name="best fit;1")
         }
         if (lednev_tree->GetEntries() == 0)
         {
-            lednev_tolerance *= 10;
+            lednev_tolerance *= lednev_tolerance_increase;
             cout << "Trying Lednev fit with tolerance " << lednev_tolerance << endl;
             minimizer->SetTolerance(lednev_tolerance);
             counter = 0;

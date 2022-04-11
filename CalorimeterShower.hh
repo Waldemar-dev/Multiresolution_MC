@@ -83,7 +83,12 @@ public:
     void set_amp_file(string in){amp_file=in;}
     void set_lednev_file(string in){lednev_output_file_name=in;}
     string get_amp_file(){return amp_file;}
-
+    void set_debias_tolerance(double in){debias_tolerance=in;}
+    void set_debias_tolerance_increase(double in){debias_tolerance_increase=in;}
+    void set_lednev_tolerance(double in){lednev_tolerance=in;}
+    void set_lednev_tolerance_increase(double in){lednev_tolerance_increase=in;}
+    void set_max_ncdf_deviation(double in){tolerance=in;}
+    
     TMatrixD compute_L_dual();
     TMatrixD compute_L();
     // TMatrixD compute_L2(map<uint,vector<uint> > *, map<uint,vector<uint> > *);
@@ -211,6 +216,7 @@ private:
     unsigned int numbOfArguments = 3;
     unsigned int lednev_fit_attempts=100;
     double lednev_tolerance=pow(10,-5);
+    double lednev_tolerance_increase=10;
     uint minLednevFits=200;
     bool fix_b1_var=false;
     bool fix_b2_var=false;
