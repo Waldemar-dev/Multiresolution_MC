@@ -119,7 +119,7 @@ CalorimeterShower::CalorimeterShower(unsigned int in_enlargement, unsigned int i
     ROOT::EnableImplicitMT();
     enlargement = in_enlargement;
     dimensions = in_dimensions;
-    module_dimension = 38.3; //mm
+    module_dimension = 38.3; // mm
     enlarged_module_dimension = module_dimension / enlargement;
     set_n_modules_x(in_n_modules_x);
     set_n_modules_y(in_n_modules_y);
@@ -138,7 +138,7 @@ CalorimeterShower::CalorimeterShower(unsigned int in_enlargement, unsigned int i
     thresholdID = id;
     enlargement = in_enlargement;
     dimensions = dimensions_;
-    module_dimension = 38.3; //mm
+    module_dimension = 38.3; // mm
     enlarged_module_dimension = module_dimension / enlargement;
     set_n_modules_x(in_n_modules_x);
     set_n_modules_y(in_n_modules_y);
@@ -281,7 +281,7 @@ CalorimeterShower::CalorimeterShower(unsigned int in_enlargement, unsigned int i
         {
             if (it->first < 0)
             {
-                H[0][H.GetNcols() + it->first] = it->second; //needs cross check
+                H[0][H.GetNcols() + it->first] = it->second; // needs cross check
             }
             else
             {
@@ -530,12 +530,13 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     f1->SetParameter(3, mc_truth_a[1]); // a2
     f1->SetParameter(4, mc_truth_b[2]); // b3
     f1->SetLineColor(kGreen + 1);
-    TF1 *f1Int = new TF1("Int", "([0]*atan(x/[1]) + [3]*atan(x/[2]) + (1-[0]-[3])*atan(x/[4]))/TMath::Pi()+0.5", x_min, x_max);
-    f1Int->SetParameter(0, mc_truth_a[0]); // a1
-    f1Int->SetParameter(1, mc_truth_b[0]); // b1
-    f1Int->SetParameter(2, mc_truth_b[1]); // b2
-    f1Int->SetParameter(3, mc_truth_a[1]); // a2
-    f1Int->SetParameter(4, mc_truth_b[2]); // b3
+    TF1 *f1Int = new TF1("Int", "([0]*atan((x+[5])/[1]) + [3]*atan((x+[5])/[2]) + (1-[0]-[3])*atan((x+[5])/[4]))/TMath::Pi()+0.5", x_min, x_max);
+    f1Int->SetParameter(0, mc_truth_a[0]);          // a1
+    f1Int->SetParameter(1, mc_truth_b[0]);          // b1
+    f1Int->SetParameter(2, mc_truth_b[1]);          // b2
+    f1Int->SetParameter(3, mc_truth_a[1]);          // a2
+    f1Int->SetParameter(4, mc_truth_b[2]);          // b3
+    f1Int->SetParameter(5, module_dimension / 2.0); // offset
     f1Int->SetLineColor(kGreen + 1);
     if (write)
     {
@@ -691,13 +692,13 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
     amp_histo->Write();
     ampIntegral->Write();
     cout << "variance=" << get_variance() << endl;
-    //fit for f
+    // fit for f
     function<double(const double *)> chisquare_data = chisquare(L, high_res_approximation, epsilon, &out_pairs_1);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(0);
     minimizer->SetTolerance(debias_tolerance);
-    //minimizer->SetPrintLevel(1);
+    // minimizer->SetPrintLevel(1);
     unsigned int numbOfArguments = epsilon->GetNrows();
     ROOT::Math::Functor f = ROOT::Math::Functor(chisquare_data, numbOfArguments);
     minimizer->SetFunction(f);
@@ -741,7 +742,7 @@ void CalorimeterShower::generate_shower(unsigned int n_events_)
                     start_value = 0;
                 }
                 minimizer->SetLowerLimitedVariable(i, name.str().c_str(), start_value, 1e-5, 0.0);
-                //minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
+                // minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
             }
             minimizer->Minimize();
             counter++;
@@ -996,9 +997,9 @@ double CalorimeterShower::sigmaE_cell(unsigned int i, TVectorD *in)
 
 double CalorimeterShower::sigmaE()
 {
-    //double c1 = 0.0114570;
-    //double c2 = 0.00145212;
-    double c1 = 0.15; //in CORAL: EC02P1__ParamEnergyError
+    // double c1 = 0.0114570;
+    // double c2 = 0.00145212;
+    double c1 = 0.15; // in CORAL: EC02P1__ParamEnergyError
     double c2 = 0.015;
     double c3 = 0.05;
 
@@ -1036,8 +1037,7 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
                                       next_gamma_threshold += (*L)[b][j] * (*L)[c][j];
                                   }
                               }
-                          }
-                      });
+                          } });
     next_gamma_threshold *= threshold;
     cout << "next_gamma_threshold=" << next_gamma_threshold << endl;
     variance = next_gamma_threshold;
@@ -1058,6 +1058,32 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     }
     cout << "next_x=" << endl;
     next_x.Print();
+
+    // logging
+    stringstream temp_name;
+    temp_name << "AMP_" << to_string(counter + 1);
+    TH2D temp_hist(temp_name.str().c_str(), temp_name.str().c_str(), n_modules_x * enlargement, x_min, x_max, n_modules_y * enlargement, y_min, y_max);
+    for (uint i = 0; i < next_x.GetNrows(); i++)
+    {
+        vector<unsigned int> bins = convert_index_to_bins(i, n_modules_x, n_modules_y);
+        temp_hist.SetBinContent(bins[0], bins[1], next_x[i]);
+        temp_hist.SetBinError(bins[0], bins[1], sqrt(variance));
+    }
+    amp_results.push_back(temp_hist);
+    TVectorD temp_mse_vec((*g) - (*L) * next_x);
+    double temp_mse = temp_mse_vec.Norm2Sqr() / (double)temp_mse_vec.GetNrows();
+    if (counter == 0)
+    {
+        best_variance = variance;
+        (*best_amp_result) = next_x;
+    }
+    else if (temp_mse < amp_mse->GetMinimum())
+    {
+        best_variance = variance;
+        (*best_amp_result) = next_x;
+    }
+    amp_mse->SetPoint(counter, counter + 1, temp_mse);
+
     if (counter < counter_max)
     {
         TVectorD result(amp(g, &next_x, x, &next_z, next_gamma_threshold, counter + 1, counter_max));
@@ -1066,25 +1092,27 @@ TVectorD CalorimeterShower::amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVec
     return next_x;
 }
 
-TVectorD CalorimeterShower::amp(TVectorD *g, unsigned int counter, unsigned int counter_max)
+TVectorD CalorimeterShower::amp(TVectorD *g, unsigned int counter, unsigned int counter_max) // return amp solution with smalles mean squared error
 {
+    best_amp_result = new TVectorD(g->GetNrows());
     TVectorD x(g->GetNrows());
     x.Zero();
     TVectorD last_x(x.GetNrows());
     last_x.Zero();
     auto start = std::chrono::high_resolution_clock::now();
-    TVectorD result(amp(g, &x, &last_x, g, lambda, counter, counter_max));
+    TVectorD result(amp(g, &x, &last_x, g, initial_gamma, counter, counter_max));
     auto finish = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = finish - start;
     amp_time = elapsed.count();
     cout << "amp took " << amp_time << " seconds." << endl;
     TVectorD zero_vec(result.GetNrows());
-    if (result == zero_vec)
-    {
-        cout << "AMP ended in zero vector." << endl;
-        abort();
-    }
-    return result;
+    return (*best_amp_result);
+    // if (result == zero_vec)
+    // {
+    //     cout << "AMP ended in zero vector." << endl;
+    //     abort();
+    // }
+    // return result;
 }
 
 void CalorimeterShower::generate_2D_shower(unsigned int n_events_)
@@ -1093,7 +1121,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_)
     write = true;
     TFile *my_file = new TFile(file_name.str().c_str(), "recreate");
     TF2 *f2 = construct_shower_function(&mc_truth_a, &mc_truth_b, "MC truth shower");
-    TF2 *f2Int = construct_ncdf_function(&mc_truth_a, &mc_truth_b, "MC truth NCDF");
+    TF2 *f2Int = construct_ncdf_function(&mc_truth_a, &mc_truth_b, module_dimension, "MC truth NCDF");
 
     if (write)
     {
@@ -1277,7 +1305,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_)
         hist_fine_2D->Write();
         cdf_fine_2D->Write();
     }
-    //Intermediate step: Apply AMP to get LASSO solution and error
+    // Intermediate step: Apply AMP to get LASSO solution and error
     TVectorD amp_solution(amp(high_res_approximation, 0, amp_iterations));
     TH2D *amp_histo = new TH2D("amp", "Solution of AMP", n_modules_x * enlargement, x_min, x_max, n_modules_y * enlargement, y_min, y_max);
     amp_histo->SetLineColor(kRed + 2);
@@ -1291,13 +1319,13 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_)
     }
     amp_histo->Write();
     cout << "variance=" << get_variance() << endl;
-    //fit for f
+    // fit for f
     function<double(const double *)> chisquare_data = chisquare(L, high_res_approximation, epsilon, &out_pairs_1);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(0);
     minimizer->SetTolerance(0.1);
-    //minimizer->SetPrintLevel(2);
+    // minimizer->SetPrintLevel(2);
     unsigned int numbOfArguments = epsilon->GetNrows();
     ROOT::Math::Functor f = ROOT::Math::Functor(chisquare_data, numbOfArguments); // function of type double
     minimizer->SetFunction(f);
@@ -1333,7 +1361,7 @@ void CalorimeterShower::generate_2D_shower(unsigned int n_events_)
                 start_value = 0;
             }
             minimizer->SetLowerLimitedVariable(i, name.str().c_str(), start_value, 1e-5, 0.0);
-            //minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
+            // minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
         }
         minimizer->Minimize();
         status_hist->Fill(minimizer->Status());
@@ -1612,18 +1640,34 @@ void CalorimeterShower::read_plot(string in1, string in2)
     use_toolbox = true;
 }
 
-void CalorimeterShower::cut_down_TH2(TH2D *in)
+void CalorimeterShower::cut_down_TH2(TH2D *in, TH2D *out)
 {
-    TH2D *out = new TH2D("", "", in->GetNbinsX() - 2 * fit_range_x_reduction, in->GetXaxis()->GetXmin() + fit_range_x_reduction * module_dimension / (double)enlargement, in->GetXaxis()->GetXmax() - fit_range_x_reduction * module_dimension / (double)enlargement, in->GetNbinsY() - 2 * fit_range_y_reduction, in->GetYaxis()->GetXmin() + fit_range_y_reduction * module_dimension / (double)enlargement, in->GetYaxis()->GetXmax() - fit_range_y_reduction * module_dimension / (double)enlargement);
-    out->SetTitle(in->GetTitle());
+    if (in->GetNbinsX() != out->GetNbinsX() || in->GetNbinsY() != out->GetNbinsY())
+    {
+        cout << "Bins for cut down do not match." << endl;
+        abort();
+    }
     for (uint i = 0; i < out->GetNbinsX(); i++)
     {
         for (uint j = 0; j < out->GetNbinsY(); j++)
         {
-            out->SetBinContent(i + 1, j + 1, in->GetBinContent(i + 1 + fit_range_x_reduction, j + 1 + fit_range_y_reduction));
+            if (i < fit_range_x_reduction || i >= in->GetNbinsX() - fit_range_x_reduction)
+            {
+                out->SetBinContent(i + 1, j + 1, 0);
+                out->SetBinError(i + 1, j + 1, 0);
+            }
+            else if (j < fit_range_y_reduction || j >= in->GetNbinsY() - fit_range_y_reduction)
+            {
+                out->SetBinContent(i + 1, j + 1, 0);
+                out->SetBinError(i + 1, j + 1, 0);
+            }
+            else
+            {
+                out->SetBinContent(i + 1, j + 1, in->GetBinContent(i + 1, j + 1));
+                out->SetBinError(i + 1, j + 1, in->GetBinErrorUp(i + 1, j + 1));
+            }
         }
     }
-    (*in) = (*out);
 }
 
 void CalorimeterShower::add_initial_limits_for_a(double in1, double in2)
@@ -1640,7 +1684,7 @@ void CalorimeterShower::add_initial_limits_for_b(double in1, double in2)
     initial_b.shrink_to_fit();
 }
 
-void CalorimeterShower::lednev_fit(string plot_name)
+void CalorimeterShower::lednev_fit(string plot_name="best fit;1")
 {
     if (numbOfArguments != initial_a.size() + initial_b.size())
     {
@@ -1650,31 +1694,58 @@ void CalorimeterShower::lednev_fit(string plot_name)
     if (use_toolbox)
     {
         file_name.str("");
-        file_name << "result_x" << enlargement << ".root";
+        if (amp_file != "")
+        {
+            file_name << get_amp_file();
+        }
+        else
+        {
+            file_name << "result_x" << enlargement << ".root";
+        }
     }
     TFile *my_file = new TFile(file_name.str().c_str(), "read");
     if (!my_file->IsOpen())
     {
+        cout << "File is not open." << endl;
         abort();
     }
-    TH2D high_res_hist;
-    // cout<<"plot "<<plot_name<<" in file "<<file_name.str()<<" not found."<<endl;abort();
+    TH2D high_res_hist, high_res_ncdf, cutOut;
     high_res_hist = (*(TH2D *)my_file->Get(plot_name.c_str()));
+    high_res_ncdf = (*(TH2D *)my_file->Get("best chi sq NCDF"));
+    cutOut = (*(TH2D *)my_file->Get("cut out;1"));
     my_file->Close();
-    if (fit_range_x_reduction > 0 || fit_range_y_reduction > 0)
+    TH2D *reduced_data = new TH2D("reduced data", "(High resolution) data within defined region;x/mm;y/mm", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
+    if (direct_fit)
     {
-        cut_down_TH2(&high_res_hist);
+        cut_down_TH2(&cutOut, reduced_data);
+    }
+    else
+    {
+        cut_down_TH2(&high_res_hist, reduced_data);
     }
     stringstream new_file_name;
-    new_file_name << "lednev_fit_x" << enlargement << ".root";
+    if (lednev_output_file_name!=""){
+        new_file_name<<lednev_output_file_name;
+    } else {
+        new_file_name << "lednev_fit_x" << enlargement << ".root";
+    }
     my_file = new TFile(new_file_name.str().c_str(), "recreate");
-    high_res_hist.Write("data");
-
-    //build tree
+    if (direct_fit)
+    {
+        cutOut.Write("data");
+    }
+    else
+    {
+        high_res_hist.Write("data");
+    }
+    reduced_data->Write("reduced data");
+    // build tree
     TTree *lednev_tree = new TTree("Lednev fit results", "Lednev Fit Results");
     TH2D *lednev_shower_hist = new TH2D("Lednev shower", "Lednev shower;x/mm;y/mm", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
     TH2D *lednev_ncdf_hist = new TH2D("Lednev NCDF", "Lednev NCDF;x/mm;y/mm", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
     TH2D *lednev_correlations = new TH2D("Lednev correlations", "Correlations;a;b", numbOfArguments / 2 + 1, 0.5, numbOfArguments / 2 + 1.5, numbOfArguments / 2 + 1, 0.5, numbOfArguments / 2 + 1.5);
+    TH2D *lednev_red_chi_sq_contributions = new TH2D("red chi sq contributions", "Contributions to #chi^{2}_{red.};x/mm;y/mm", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
+    TH2D *lednev_transform = new TH2D("Transformed Lednev", "Lednev through low-pass filter;x/mm;y/mm", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
     TF2 *lednev_ncdf = new TF2();
     TF2 *lednev_shower_function = new TF2();
     TGraph2DErrors *lednev_diff_graph = new TGraph2DErrors();
@@ -1687,15 +1758,19 @@ void CalorimeterShower::lednev_fit(string plot_name)
     lednev_a_errors = temp_lednev_a_errors;
     lednev_b = temp_lednev_b;
     lednev_b_errors = temp_lednev_b_errors;
+    degrees_of_freedom = reduced_data->GetNbinsX() * reduced_data->GetNbinsY() - numbOfArguments - 2 * fit_range_x_reduction * reduced_data->GetNbinsY() - 2 * fit_range_y_reduction * reduced_data->GetNbinsX() + 4 * fit_range_x_reduction * fit_range_y_reduction;
     lednev_tree->Branch("reduced_chi_square", &lednev_red_chi_sq);
     lednev_tree->Branch("Fit_Status", &lednev_fit_status);
-    lednev_tree->Branch("Shower", lednev_shower_hist);
-    lednev_tree->Branch("NCDF_histogram", lednev_ncdf_hist);
-    lednev_tree->Branch("NCDF", lednev_ncdf);
+    lednev_tree->Branch("Shower_histogram", &lednev_shower_hist);
+    lednev_tree->Branch("Shower", &lednev_shower_function);
+    lednev_tree->Branch("NCDF_histogram", &lednev_ncdf_hist);
+    lednev_tree->Branch("NCDF", &lednev_ncdf);
     lednev_tree->Branch("Correlations", lednev_correlations);
     lednev_tree->Branch("Difference_between_Lednev_fit_and_real_data", &lednev_diff_graph);
     lednev_tree->Branch("Mean_Squared_Error_between_Lednev_fit_and_real_data", &lednev_real_data_mse);
     lednev_tree->Branch("Lednev_NCDF_x_projection", &lednev_ncdf_x_projection);
+    lednev_tree->Branch("red_chi_sq_contributions", &lednev_red_chi_sq_contributions);
+    lednev_tree->Branch("transformed_lednev_solution", &lednev_transform);
     TMatrixD lednev_covariance(numbOfArguments, numbOfArguments);
     for (uint i = 0; i < numbOfArguments - 1; i++)
     {
@@ -1721,7 +1796,6 @@ void CalorimeterShower::lednev_fit(string plot_name)
     lednev_tree->Branch(last_b_name.c_str(), &lednev_b[lednev_b.size() - 1]);
     last_b_name = "#Delta " + last_b_name;
     lednev_tree->Branch(last_b_name.c_str(), &lednev_b_errors[lednev_b_errors.size() - 1]);
-
     set_x_range(high_res_hist.GetXaxis()->GetXmin() + fit_range_x_reduction * enlarged_module_dimension, high_res_hist.GetXaxis()->GetXmax() - fit_range_x_reduction * enlarged_module_dimension);
     set_y_range(high_res_hist.GetYaxis()->GetXmin() + fit_range_y_reduction * enlarged_module_dimension, high_res_hist.GetYaxis()->GetXmax() - fit_range_y_reduction * enlarged_module_dimension);
     TH2D *data_ncdf = new TH2D("data ncdf", "NCDF of debiased f", high_res_hist.GetNbinsX(), high_res_hist.GetXaxis()->GetXmin(), high_res_hist.GetXaxis()->GetXmax(), high_res_hist.GetNbinsY(), high_res_hist.GetYaxis()->GetXmin(), high_res_hist.GetYaxis()->GetXmax());
@@ -1732,32 +1806,36 @@ void CalorimeterShower::lednev_fit(string plot_name)
     data_ncdf_x_pro->Write("data ncdf x projection");
     TF2 *f2 = construct_shower_function(&real_data_a[detector_type], &real_data_b[detector_type], "real data shower");
     f2->Write("real data shower");
-    TF2 *f2_int = construct_ncdf_function(&real_data_a[detector_type], &real_data_b[detector_type], "real data NCDF");
+    TF2 *f2_int = construct_ncdf_function(&real_data_a[detector_type], &real_data_b[detector_type], module_dimension, "real data NCDF");
     f2_int->Write("real data NCDF");
-    function<double(const double *)> chisquare_data = chisquare(&high_res_hist, energy, numbOfArguments);
+    function<double(const double *)> chisquare_data = chisquare(reduced_data, energy, numbOfArguments);
     if (direct_fit)
     {
-        chisquare_data = chisquare(&high_res_hist, L, numbOfArguments);
+        chisquare_data = chisquare(reduced_data, L, numbOfArguments);
+    }
+    else if (filterIndices)
+    {
+        vector<vector<uint>> filtered_indices(filter_indices(radius));
+        chisquare_data = chisquare(reduced_data, energy, numbOfArguments, filtered_indices);
     }
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
-    minimizer->SetMaxFunctionCalls(100000); //0 stops at ~850!?
+    minimizer->SetMaxFunctionCalls(100000); // 0 stops at ~850!?
     minimizer->SetTolerance(lednev_tolerance);
-    //minimizer->SetPrintLevel(2);
+    // minimizer->SetPrintLevel(2);
     ROOT::Math::Functor f = ROOT::Math::Functor(chisquare_data, numbOfArguments);
     minimizer->SetFunction(f);
     srand(time(NULL));
-
     double best_mse_ncdf = DBL_MAX;
     double best_red_chi_sq = DBL_MAX;
     map<double, map<unsigned int, TH1D>> a_dist, b_dist;
     while (lednev_tree->GetEntries() == 0)
     {
         unsigned int counter = 0;
-        while (counter < lednev_fit_attempts || (lednev_tree->GetEntries() > 1 && lednev_tree->GetEntries() < minLednevFits))
+        while (counter < lednev_fit_attempts || (lednev_tree->GetEntries() > 0 && lednev_tree->GetEntries() < minLednevFits))
         {
             cout << endl;
-            cout << "fit attempt=" << counter << endl;
+            cout << "fit attempt=" << counter << " (" << min(counter / (double)lednev_fit_attempts, lednev_tree->GetEntries() / (double)minLednevFits) * 100.0 << "\%)" << endl;
             for (uint i = 0; i < numbOfArguments - 1; i++)
             {
                 if (i % 2 == 0)
@@ -1772,23 +1850,24 @@ void CalorimeterShower::lednev_fit(string plot_name)
                     double start_value_b = (initial_b[i / 2][1] - initial_b[i / 2][0]) * rand() / (double)RAND_MAX + initial_b[i / 2][0];
                     stringstream var_name;
                     var_name << "b" << to_string(i / 2 + 1);
-                    minimizer->SetLowerLimitedVariable(i, var_name.str().c_str(), start_value_b, 1e-5, 1);
-                    if (limitedVariables){
-                        minimizer->SetLimitedVariable(i, var_name.str().c_str(), start_value_b, 1e-5, initial_b[i / 2][0], initial_b[i / 2][1]);
-                    }
+                    minimizer->SetLowerLimitedVariable(i, var_name.str().c_str(), start_value_b, 1e-5, 0);
+                    // minimizer->SetVariable(i, var_name.str().c_str(), start_value_b, 1e-5);
                 }
             }
             double start_value_b = (initial_b[initial_b.size() - 1][1] - initial_b[initial_b.size() - 1][0]) * rand() / (double)RAND_MAX + initial_b[initial_b.size() - 1][0];
             stringstream var_name;
             var_name << "b" << to_string(initial_b.size());
-            minimizer->SetLowerLimitedVariable(numbOfArguments - 1, var_name.str().c_str(), start_value_b, 1e-5, 1);
-            if (limitedVariables){
-                minimizer->SetLimitedVariable(numbOfArguments - 1, var_name.str().c_str(), start_value_b, 1e-5, initial_b[initial_b.size() - 1][0], initial_b[initial_b.size() - 1][1]);
-            }
+            minimizer->SetLowerLimitedVariable(numbOfArguments - 1, var_name.str().c_str(), start_value_b, 1e-5, 0);
+            // minimizer->SetVariable(numbOfArguments - 1, var_name.str().c_str(), start_value_b, 1e-5);
             minimizer->Minimize();
-            if (minimizer->Status()==4){
-                cout<<"Did not reach minimum Edm. Continuing the fit."<<endl;
-                minimizer->Minimize();
+            double temp_edm = minimizer->Edm();
+            if (minimizer->Status() == 4)
+            {
+                while (minimizer->Status() == 4 && minimizer->Edm() >= temp_edm)
+                {
+                    cout << "Did not reach minimum Edm. Continuing the fit." << endl;
+                    minimizer->Minimize();
+                }
             }
             counter++;
             if (minimizer->Status() <= 1)
@@ -1832,26 +1911,26 @@ void CalorimeterShower::lednev_fit(string plot_name)
                 }
 
                 double *args = args_vec.data();
-                lednev_red_chi_sq = chisquare_result(args) / (double)(high_res_hist.GetNbinsX() * high_res_hist.GetNbinsY() - numbOfArguments);
+                lednev_red_chi_sq = chisquare_result(args) / (double)(degrees_of_freedom);
 
-                lednev_ncdf = construct_ncdf_function(&lednev_a, &lednev_b, "Lednev ncdf");
+                lednev_ncdf = construct_ncdf_function(&lednev_a, &lednev_b, enlarged_module_dimension, "Lednev ncdf");
                 lednev_ncdf->SetTitle("Lednev fit NCDF;x/mm;y/mm");
-                lednev_ncdf->SetNpx(high_res_hist.GetNbinsX());
-                lednev_ncdf->SetNpy(high_res_hist.GetNbinsY());
+                lednev_ncdf->SetNpx(reduced_data->GetNbinsX());
+                lednev_ncdf->SetNpy(reduced_data->GetNbinsY());
                 // lednev_ncdf_hist=(TH2D*)lednev_ncdf->CreateHistogram();
                 convert_TF2_NCDF_to_TH2D(lednev_ncdf, lednev_ncdf_hist);
                 create_x_projection(lednev_ncdf_hist, lednev_ncdf_x_projection);
-                TF2 *f2 = construct_shower_function(&lednev_a, &lednev_b, "Lednev shower");
-                f2->SetNpx(high_res_hist.GetNbinsX());
-                f2->SetNpy(high_res_hist.GetNbinsY());
+                lednev_shower_function = construct_shower_function(&lednev_a, &lednev_b, "Lednev shower");
+                lednev_shower_function->SetNpx(reduced_data->GetNbinsX());
+                lednev_shower_function->SetNpy(reduced_data->GetNbinsY());
                 cout << "reduced chi sq=" << lednev_red_chi_sq << endl;
-                f2->SetTitle("Lednev fit;x/mm;y/mm");
-                lednev_shower_hist = (TH2D *)f2->CreateHistogram();
-                lednev_shower_hist->Scale(high_res_hist.Integral() / lednev_shower_hist->Integral());
+                lednev_shower_function->SetTitle("Lednev fit;x/mm;y/mm");
+                lednev_shower_hist = (TH2D *)lednev_shower_function->CreateHistogram();
+                lednev_shower_hist->Scale(reduced_data->Integral() / lednev_shower_hist->Integral());
                 double temp_max_start[2] = {0, 0}, temp_min_start[2] = {0, 0};
                 double temp_max = lednev_ncdf->GetMaximum(temp_max_start);
                 double temp_min = lednev_ncdf->GetMinimum(temp_min_start);
-                if (abs(temp_max - 1) > tolerance || abs(temp_min) > tolerance)
+                if (abs(temp_max - high_res_ncdf.GetBinContent(high_res_ncdf.GetNbinsX(), high_res_ncdf.GetNbinsY())) > tolerance || abs(temp_min - high_res_ncdf.GetBinContent(1, 1)) > tolerance)
                 {
                     cout << "Rejecting solution, because NCDF is between " << temp_min << " and " << temp_max << "." << endl;
                     continue;
@@ -1868,8 +1947,9 @@ void CalorimeterShower::lednev_fit(string plot_name)
                         temp_hist_name << "a" << to_string(i + 1) << "_dist_" << to_string(lednev_red_chi_sq);
                         stringstream temp_hist_name2;
                         temp_hist_name2 << "a_{" << to_string(i + 1) << "} distribution";
-                        TH1D *temp_a_dist = new TH1D(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
-                        temp_map.insert(pair<unsigned int, TH1D>(i, (*temp_a_dist)));
+                        // TH1D *temp_a_dist = new TH1D(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
+                        TH1D temp_a_dist(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
+                        temp_map.insert(pair<unsigned int, TH1D>(i, temp_a_dist));
                     }
                     a_dist.insert(pair<double, map<unsigned int, TH1D>>(lednev_red_chi_sq, temp_map));
                     map<unsigned int, TH1D> temp_map2;
@@ -1879,8 +1959,9 @@ void CalorimeterShower::lednev_fit(string plot_name)
                         temp_hist_name2.str("");
                         temp_hist_name << "b" << to_string(i + 1) << "_dist_" << to_string(lednev_red_chi_sq);
                         temp_hist_name2 << "b_{" << to_string(i + 1) << "} distribution";
-                        TH1D *temp_b_dist = new TH1D(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
-                        temp_map2.insert(pair<unsigned int, TH1D>(i, (*temp_b_dist)));
+                        // TH1D *temp_b_dist = new TH1D(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
+                        TH1D temp_b_dist(temp_hist_name.str().c_str(), temp_hist_name2.str().c_str(), 100, 0, 0);
+                        temp_map2.insert(pair<unsigned int, TH1D>(i, temp_b_dist));
                     }
                     b_dist.insert(pair<double, map<unsigned int, TH1D>>(lednev_red_chi_sq, temp_map2));
                 }
@@ -1894,7 +1975,13 @@ void CalorimeterShower::lednev_fit(string plot_name)
                 lednev_real_data_mse = 0;
                 NCDF_difference(&lednev_a, &lednev_b, &lednev_a_errors, &lednev_b_errors, lednev_diff_graph);
                 lednev_diff_graph->SetTitle("Difference between fit and real data NCDFs;x/mm;y/mm");
+                plot_red_chi_sq_contributions_per_bin(reduced_data, lednev_shower_hist, lednev_red_chi_sq_contributions);
+                transform_lednev_solution(lednev_shower_hist, lednev_transform);
                 lednev_tree->Fill();
+            }
+            else
+            {
+                cout << "Failed with status " << minimizer->Status() << "." << endl;
             }
         }
         if (lednev_tree->GetEntries() == 0)
@@ -2079,6 +2166,8 @@ void CalorimeterShower::fix_b2(double in)
 
 void CalorimeterShower::multiresolution(uint n_cells_x)
 {
+    amp_mse = new TGraph(amp_iterations);
+    amp_mse->SetTitle(";Iteration;MSE");
     if (use_toolbox)
     {
         cout << "Cannot use a toolbox file for a one dimensional shower profile." << endl;
@@ -2103,7 +2192,13 @@ void CalorimeterShower::multiresolution(uint n_cells_x)
         amp_histo->SetBinContent(i + 1, amp_solution[i]);
     }
     amp_histo->Write("amp");
-    //debiasing
+    for (uint i = 0; i < amp_results.size(); i++)
+    {
+        amp_results[i].Write();
+    }
+    amp_results.clear();
+    amp_mse->Write("mse");
+    // debiasing
     function<double(const double *)> chisquare_data = chisquare(L, high_res_approximation, epsilon, &out_pairs_1);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
@@ -2120,6 +2215,11 @@ void CalorimeterShower::multiresolution(uint n_cells_x)
     TVectorD epsilon_best_chi_sq((n_cells_x * 2 + 1) * enlargement);
     default_random_engine generator;
     vector<normal_distribution<double>> distributions;
+    if (get_variance() == 0)
+    {
+        cout << "0 variance. Abort." << endl;
+        abort();
+    }
     for (int i = 0; i < epsilon->GetNrows(); i++)
     {
         normal_distribution<double> distribution(amp_solution[i], sqrt(get_variance()));
@@ -2128,7 +2228,7 @@ void CalorimeterShower::multiresolution(uint n_cells_x)
     distributions.shrink_to_fit();
     TH1D *status_hist = new TH1D("status_hist", "Minimizer status", 5, 0, 0);
     double bin_length = module_dimension / ((double)enlargement);
-    while (counter < fit_attempts)
+    while (counter < fit_attempts || best_chi_squared > max_debias_chi_sq)
     {
         cout << endl;
         cout << "fit attempt=" << counter + 1 << endl;
@@ -2142,9 +2242,18 @@ void CalorimeterShower::multiresolution(uint n_cells_x)
                 start_value = 0;
             }
             minimizer->SetLowerLimitedVariable(i, name.str().c_str(), start_value, 1e-5, 0.0);
-            //minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
+            // minimizer->SetVariable(i, name.str().c_str(), start_value, 1e-5);
         }
         minimizer->Minimize();
+        double temp_edm = minimizer->Edm();
+        if (minimizer->Status() == 4)
+        {
+            while (temp_edm >= minimizer->Edm() && minimizer->Status() == 4)
+            {
+                temp_edm = minimizer->Edm();
+                minimizer->Minimize();
+            }
+        }
         status_hist->Fill(minimizer->Status());
         counter++;
         if (minimizer->Status() <= 1)
@@ -2239,6 +2348,9 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
         return 0;
     }
     set_y_range(-(n_cells_y + 0.5) * module_dimension, (n_cells_y + 0.5) * module_dimension);
+    amp_results.reserve(amp_iterations);
+    amp_mse = new TGraph(amp_iterations);
+    amp_mse->SetTitle(";Iteration;MSE");
     TH1D *chi_sq_hist = new TH1D("chi sq", "chi squared distribution", 500, 0, 0);
     TH2D *approximation = new TH2D("approximation", "high res approximation", 100, 0, 0, 100, 0, 0);
     if (use_toolbox)
@@ -2281,10 +2393,13 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
         approximation_cut_out->SetBinError(bin_numbers[0], bin_numbers[1], (*epsilon)[i]);
     }
     approximation_cut_out->Write("cut out");
-    cout<<"Is the cut out centered?(y/n)"<<endl;
+    cout << "Is the cut out centered?(y/n)" << endl;
     string check;
-    cin>>check;
-    if (check=="n" || check=="N" || check=="no" || check=="No"){abort();}
+    cin >> check;
+    if (check == "n" || check == "N" || check == "no" || check == "No")
+    {
+        abort();
+    }
     TVectorD amp_solution(amp(high_res_approximation, 0, amp_iterations));
     TH2D *amp_histo = new TH2D("amp", "Solution of AMP", (n_cells_x * 2 + 1) * enlargement, x_min, x_max, (n_cells_y * 2 + 1) * enlargement, y_min, y_max);
     amp_histo->SetLineColor(kRed + 2);
@@ -2294,8 +2409,14 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
         unsigned int y_bin = i % ((n_cells_y * 2 + 1) * enlargement);
         amp_histo->SetBinContent(x_bin + 1, y_bin + 1, amp_solution[i]);
     }
+    for (uint i = 0; i < amp_results.size(); i++)
+    {
+        amp_results[i].Write();
+    }
+    amp_results.clear();
     amp_histo->Write("amp");
-    //debiasing
+    amp_mse->Write("mse");
+    // debiasing
     function<double(const double *)> chisquare_data = chisquare(L, high_res_approximation, epsilon, &out_pairs_1);
     function<double(const double *)> chisquare_result = chisquare_output(chisquare_data);
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
@@ -2314,6 +2435,11 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
     TVectorD epsilon_best_chi_sq((n_cells_x * 2 + 1) * enlargement * (n_cells_y * 2 + 1) * enlargement);
     default_random_engine generator;
     vector<normal_distribution<double>> distributions;
+    if (get_variance() == 0)
+    {
+        cout << "0 variance. Abort." << endl;
+        abort();
+    }
     for (int i = 0; i < epsilon->GetNrows(); i++)
     {
         normal_distribution<double> distribution(amp_solution[i], sqrt(get_variance()));
@@ -2325,7 +2451,7 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
     bool found_fit = false;
     while (!found_fit)
     {
-        while (counter < fit_attempts)
+        while (counter < fit_attempts || (best_chi_squared > max_debias_chi_sq && found_fit))
         {
             cout << endl;
             cout << "fit attempt=" << counter + 1 << endl;
@@ -2341,6 +2467,18 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
                 minimizer->SetLowerLimitedVariable(i, name.str().c_str(), start_value, 1e-5, 0.0);
             }
             minimizer->Minimize();
+
+            if (minimizer->Status() == 4)
+            {
+                double temp_edm = minimizer->Edm() + 1;
+                while (temp_edm > minimizer->Edm() && minimizer->Status() == 4)
+                {
+                    cout << "Status is 4, Edm is " << minimizer->Edm() << ". Continuing minimizing this fit attempt." << endl;
+                    temp_edm = minimizer->Edm();
+                    minimizer->Minimize();
+                }
+            }
+
             status_hist->Fill(minimizer->Status());
             counter++;
             if (minimizer->Status() <= 1)
@@ -2380,12 +2518,16 @@ void CalorimeterShower::multiresolution(uint n_cells_x, uint n_cells_y)
                     found_fit = true;
                 }
             }
+            else
+            {
+                cout << "Finished with status " << minimizer->Status() << "." << endl;
+            }
         }
         if (!found_fit)
         {
-            cout << "No fit found. Increasing tolerance by a factor of " << debias_tolerance_increase << "." << endl;
             debias_tolerance *= debias_tolerance_increase;
             minimizer->SetTolerance(debias_tolerance);
+            cout << "No fit found. Increasing tolerance by a factor of " << debias_tolerance_increase << " to " << debias_tolerance << "." << endl;
             counter = 0;
         }
     }
@@ -2421,15 +2563,14 @@ void CalorimeterShower::calibrate_penalty()
     ROOT::Math::Minimizer *minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(0);
     minimizer->SetTolerance(0.1);
-    //minimizer->SetPrintLevel(2);
+    // minimizer->SetPrintLevel(2);
     TF1 lambda_fnct(
         "lambda", [](double *args, double *pars)
         {
             double z = args[0];
             double result = 1 - (1 + z * z) * erf(-z) + z * exp(-z * z / 2.0) / sqrt(2.0 * TMath::Pi());
             result /= (z * z + result);
-            return -result;
-        },
+            return -result; },
         0, 1);
     ROOT::Math::Functor f = ROOT::Math::Functor(lambda_fnct, 1);
     minimizer->SetFunction(f);
@@ -2533,7 +2674,7 @@ void CalorimeterShower::set_real_data_showerparameters_for_shashlik(vector<doubl
 
 void CalorimeterShower::construct_real_data_plots(TFile *root_file)
 {
-    TF2 *ncdf(construct_ncdf_function(&real_data_a[detector_type], &real_data_b[detector_type], "real data ncdf"));
+    TF2 *ncdf(construct_ncdf_function(&real_data_a[detector_type], &real_data_b[detector_type], module_dimension, "real data ncdf"));
     ncdf->SetNpx(n_modules_x * enlargement);
     ncdf->SetNpy(n_modules_y * enlargement);
     TH2D *ncdf_histo = (TH2D *)ncdf->CreateHistogram();
@@ -2552,13 +2693,15 @@ string CalorimeterShower::construct_atan_sum(int n_a, vector<string> *par_names)
     result << "(";
     stringstream last_a;
     last_a << "(1-";
+    string x_string = "(x+[" + to_string(2 * n_a + 1) + "])";
+    string y_string = "(y+[" + to_string(2 * n_a + 1) + "])";
     for (uint i = 0; i < n_a; i++)
     {
         stringstream a_var;
         a_var << "[" << to_string(2 * i) << "]";
         stringstream b_var;
         b_var << "[" << to_string(2 * i + 1) << "]";
-        result << a_var.str() << "*(atan(x/" << b_var.str() << ")+atan(y/" << b_var.str() << ")+atan(x*y/" << b_var.str() << "/sqrt(" << b_var.str() << "*" << b_var.str() << "+x*x+y*y))) + ";
+        result << a_var.str() << "*(atan(" << x_string << "/" << b_var.str() << ")+atan(" << y_string << "/" << b_var.str() << ")+atan(" << x_string << "*" << y_string << "/" << b_var.str() << "/sqrt(" << b_var.str() << "*" << b_var.str() << "+" << x_string << "*" << x_string << "+" << y_string << "*" << y_string << "))) + ";
         last_a << a_var.str();
         if (i == n_a - 1)
         {
@@ -2569,22 +2712,23 @@ string CalorimeterShower::construct_atan_sum(int n_a, vector<string> *par_names)
             last_a << " - ";
         }
         stringstream a_name;
-        a_name << "a" << to_string(2 * i);
+        a_name << "a" << to_string(i + 1);
         par_names->push_back(a_name.str());
         stringstream b_name;
-        b_name << "b" << to_string(2 * i + 1);
+        b_name << "b" << to_string(i + 1);
         par_names->push_back(b_name.str());
     }
     stringstream b_var;
     b_var << "[" << to_string(2 * n_a) << "]";
     stringstream b_name;
-    b_name << "b" << to_string(2 * n_a);
+    b_name << "b" << to_string(1 + n_a);
     par_names->push_back(b_name.str());
-    result << last_a.str() << "*(atan(x/" << b_var.str() << ")+atan(y/" << b_var.str() << ")+atan(x*y/" << b_var.str() << "/sqrt(" << b_var.str() << "*" << b_var.str() << "+x*x+y*y))))/(2*TMath::Pi())+0.25";
+    par_names->push_back("cell_width");
+    result << last_a.str() << "*(atan(" << x_string << "/" << b_var.str() << ")+atan(" << y_string << "/" << b_var.str() << ")+atan(" << x_string << "*" << y_string << "/" << b_var.str() << "/sqrt(" << b_var.str() << "*" << b_var.str() << "+" << x_string << "*" << x_string << "+" << y_string << "*" << y_string << "))))/(2*TMath::Pi())+0.25";
     return result.str();
 }
 
-TF2 *CalorimeterShower::construct_ncdf_function(vector<double> *in1, vector<double> *in2, string tf_name)
+TF2 *CalorimeterShower::construct_ncdf_function(vector<double> *in1, vector<double> *in2, double width, string tf_name)
 {
     vector<double> a, b;
     if (in1->size() == in2->size() - 1)
@@ -2614,7 +2758,8 @@ TF2 *CalorimeterShower::construct_ncdf_function(vector<double> *in1, vector<doub
         ncdf->SetParameter(2 * i, a[i]);
         ncdf->SetParameter(2 * i + 1, b[i]);
     }
-    ncdf->SetParameter(2 * a.size(), b.back());
+    ncdf->SetParameter(a.size() + b.size() - 1, b.back());
+    ncdf->SetParameter(a.size() + b.size(), width / 2.0);
     return ncdf;
 }
 
@@ -2778,16 +2923,16 @@ string CalorimeterShower::construct_shower_sum(uint n_a, vector<string> *par_nam
 
 TF2 *CalorimeterShower::construct_shower_function(vector<double> *in1, vector<double> *in2, string in_name)
 {
-    vector<double> a, b;
+    vector<double> *a, *b;
     if (in1->size() == in2->size() - 1)
     {
-        a = (*in1);
-        b = (*in2);
+        a = in1;
+        b = in2;
     }
     else if (in2->size() == in1->size() - 1)
     {
-        a = (*in2);
-        b = (*in1);
+        a = in2;
+        b = in1;
     }
     else
     {
@@ -2795,18 +2940,18 @@ TF2 *CalorimeterShower::construct_shower_function(vector<double> *in1, vector<do
         abort();
     }
     vector<string> par_names;
-    string formula = construct_shower_sum(a.size(), &par_names);
+    string formula = construct_shower_sum(a->size(), &par_names);
     TF2 *shower = new TF2(in_name.c_str(), formula.c_str(), x_min, x_max, y_min, y_max);
     for (uint i = 0; i < par_names.size(); i++)
     {
         shower->SetParName(i, par_names[i].c_str());
     }
-    for (uint i = 0; i < real_data_a_shashlik.size(); i++)
+    for (uint i = 0; i < a->size(); i++)
     {
-        shower->SetParameter(2 * i, real_data_a_shashlik[i]);
-        shower->SetParameter(2 * i + 1, real_data_b_shashlik[i]);
+        shower->SetParameter(2 * i, a->at(i));
+        shower->SetParameter(2 * i + 1, b->at(i));
     }
-    shower->SetParameter(2 * real_data_a_shashlik.size(), real_data_b_shashlik.back());
+    shower->SetParameter(2 * a->size(), b->back());
     return shower;
 }
 
@@ -2842,4 +2987,73 @@ void CalorimeterShower::convert_TF2_NCDF_to_TH2D(TF2 *in, TH2D *out)
             out->SetBinContent(i + 1, j + 1, (*in)(x, y, 0, 0));
         }
     }
+}
+
+void CalorimeterShower::transform_lednev_solution(TH2D *in, TH2D *out)
+{
+    TVectorD solution(in->GetNbinsX() * in->GetNbinsY());
+    TVectorD imageVector(in->GetNbinsX() * in->GetNbinsY());
+    for (uint i = 0; i < in->GetNbinsX(); i++)
+    {
+        for (uint j = 0; j < in->GetNbinsY(); j++)
+        {
+            imageVector[convert_bins_to_index(i + 1, j + 1, in->GetNbinsY())] = in->GetBinContent(i + 1, j + 1);
+        }
+    }
+    for (uint i = 0; i < imageVector.GetNrows(); i++)
+    {
+        for (vector<uint>::iterator it = out_pairs_1[i].begin(); it != out_pairs_1[i].end(); it++)
+        {
+            solution[i] += (*L)[i][*it] * imageVector[*it];
+        }
+        vector<uint> bins(convert_index_to_bins(i, in->GetNbinsX(), in->GetNbinsY()));
+        out->SetBinContent(bins[0], bins[1], solution[i]);
+    }
+}
+
+void CalorimeterShower::plot_red_chi_sq_contributions_per_bin(TH2D *inData, TH2D *inModel, TH2D *out)
+{
+    for (uint i = 0; i < inData->GetNbinsX(); i++)
+    {
+        for (uint j = 0; j < inData->GetNbinsY(); j++)
+        {
+            if (inData->GetBinErrorUp(i + 1, j + 1) == 0)
+            {
+                continue;
+            }
+            out->SetBinContent(i + 1, j + 1, pow((inData->GetBinContent(i + 1, j + 1) - inModel->GetBinContent(i + 1, j + 1)) / inData->GetBinErrorUp(i + 1, j + 1), 2));
+        }
+    }
+}
+
+vector<vector<uint>> CalorimeterShower::filter_indices(uint radius)
+{
+    vector<vector<uint>> result;
+    vector<uint> radii;
+    uint counter = 1;
+    for (uint i = radius + 1; i < round(n_modules_x * enlargement / 2.0); i++)
+    {
+        for (uint j = 0; j < counter; j++)
+        {
+            i++;
+        }
+        counter++;
+        radii.push_back(i);
+    }
+    for (uint i = 1; i <= n_modules_x * enlargement; i++)
+    {
+        uint r_x = abs(i - round(n_modules_x * enlargement / 2.0));
+        for (uint j = 1; j <= n_modules_y * enlargement; j++)
+        {
+            uint r_y = abs(j - round(n_modules_y * enlargement / 2.0));
+            uint r_sup = max(r_x, r_y);
+            vector<uint> temp = {i, j};
+            if (r_sup <= radius || find(radii.begin(), radii.end(), r_sup) != radii.end())
+            {
+                result.push_back(temp);
+            }
+        }
+    }
+    result.shrink_to_fit();
+    return result;
 }

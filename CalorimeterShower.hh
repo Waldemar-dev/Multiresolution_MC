@@ -47,7 +47,7 @@ public:
     void set_n_modules_x(unsigned int);
     void set_n_modules_y(unsigned int);
     void set_n_events(unsigned int in) { n_events = in; }
-    void set_par(vector<double> in){par=in;}
+    // void set_par(vector<double> in){par=in;}
     void generate_shower(unsigned int n_events_, unsigned int dim);
     void generate_shower(unsigned int);
     void generate_2D_shower(unsigned int);
@@ -67,7 +67,7 @@ public:
     void set_b1_range(double in1, double in2){initial_b1_min=min(in1,in2);initial_b1_max=max(in1,in2);}
     void set_b2_range(double in1, double in2){initial_b2_min=min(in1,in2);initial_b2_max=max(in1,in2);}
     void set_b3_range(double in1, double in2){initial_b3_min=min(in1,in2);initial_b3_max=max(in1,in2);}
-    void set_direct_fit(bool in=true){direct_fit=in;}
+    void set_direct_fit(){direct_fit=true;}
     void reduce_fit_range_x(unsigned int in){fit_range_x_reduction=in;}
     void reduce_fit_range_y(unsigned int in){fit_range_y_reduction=in;}
     void shift_approximation_in_x(unsigned int in){approximation_x_shift=in;}
@@ -79,7 +79,10 @@ public:
     void write_stats_into_file(string);
     void set_real_data_showerparameters_for_shashlik(vector<double>, vector<double>);
     void set_min_lednev_fits(uint in){minLednevFits=in;}
-    void limit_variables(){limitedVariables=true;}
+    void filter_indices_radially(uint in=3){filterIndices=true; radius=in;}
+    void set_amp_file(string in){amp_file=in;}
+    void set_lednev_file(string in){lednev_output_file_name=in;}
+    string get_amp_file(){return amp_file;}
 
     TMatrixD compute_L_dual();
     TMatrixD compute_L();
@@ -89,21 +92,21 @@ public:
     map<int,double> get_mask(){return mask;}
     map<int,double> get_dual_mask(){return dual_mask;}
     TMatrixD get_high_res_image(){return (*high_res_image);}
-    double get_variance(){return variance;}
+    double get_variance(){return best_variance;}
     double get_mse(){return tot_error;}
     double get_mse_of_ncdfs(){return tot_error_ncdf;}
     vector<unsigned int> convert_index_to_bins(unsigned int, unsigned int, unsigned int);
     unsigned int convert_bins_to_index(unsigned int, unsigned int, unsigned int);
 
 private:
-    void cut_down_TH2(TH2D*);
+    void cut_down_TH2(TH2D*, TH2D*);
     void fill_real_data_parameters();
     TMatrixD Kronecker_product(TMatrixD*, TMatrixD*, map<uint,vector<uint> > *, map<uint,vector<uint> > *);
     void create_x_projection(TH2D*, TH1D*);
     // general variables
     stringstream file_name;
     bool write;
-    unsigned int fit_attempts=10;
+    unsigned int fit_attempts=15;
     unsigned int dimensions=2;
     string toolbox_file_name;
     string toolbox_directory_name="";
@@ -146,7 +149,7 @@ private:
     void construct_real_data_plots(TFile*);
     string construct_atan_sum(int, vector<string>*);
     string construct_shower_sum(uint, vector<string>*);
-    TF2* construct_ncdf_function(vector<double>*, vector<double>*, string);
+    TF2* construct_ncdf_function(vector<double>*, vector<double>*, double, string);
     TF2* construct_shower_function(vector<double>*, vector<double>*, string);
     void convert_TF2_NCDF_to_TH2D(TF2*, TH2D*);
 
@@ -163,7 +166,8 @@ private:
     vector<map<int, double>> wavelet_masks, wavelet_dual_masks;
     vector<double> par;
     double gamma = 1.0;
-    double lambda=6.61918e-08;
+    double lambda=0;//6.61918e-08;
+    double initial_gamma=pow(10,-12);
     unsigned int approximation_x_shift=0;
     unsigned int approximation_y_shift=0;
     map<uint,vector<uint> > out_pairs_1, out_pairs_2, dual_out_pairs_1, dual_out_pairs_2;
@@ -184,9 +188,15 @@ private:
     TVectorD amp(TVectorD *g, unsigned int counter, unsigned int counter_max);
     TVectorD amp(TVectorD *g, TVectorD *x, TVectorD *last_x, TVectorD *z, double gamma_threshold, unsigned int counter, unsigned int counter_max);
     double variance;
-    unsigned int amp_iterations=3;
+    unsigned int amp_iterations=5;
     double debias_tolerance_increase=10;
-    double debias_tolerance=pow(10,1);
+    double debias_tolerance=pow(10,0);
+    double max_debias_chi_sq=pow(10,7);
+    string amp_file="";
+    vector<TH2D> amp_results;
+    TGraph *amp_mse=0;
+    double best_variance=0;
+    TVectorD *best_amp_result=0;
 
     // Lednev fit
     vector<double> lednev_a, lednev_a_errors, lednev_b, lednev_b_errors;
@@ -198,9 +208,10 @@ private:
     double mse_ncdf=0;
     double fixed_b1=0;
     double fixed_b2=0;
-    unsigned int numbOfArguments = 5;
+    unsigned int numbOfArguments = 3;
     unsigned int lednev_fit_attempts=100;
-    double lednev_tolerance=pow(10,3);
+    double lednev_tolerance=pow(10,-5);
+    uint minLednevFits=200;
     bool fix_b1_var=false;
     bool fix_b2_var=false;
     unsigned int correlation_hist_binning=500;
@@ -213,10 +224,15 @@ private:
     double initial_b3_min=100, initial_b3_max=1000;
     double initial_b4_min=1, initial_b4_max=200;
     bool direct_fit=false;
-    double tolerance=pow(10,-2);
-    uint minLednevFits=100;
-    bool limitedVariables=false;
+    double tolerance=pow(10,-1);
     void sort_lednev_parameters(vector<double>*, vector<double>*,vector<double>*,vector<double>*,TMatrixD *, TH2D*);
     void save_correlations(vector<double>*, vector<double>*,TMatrixD*,TH2D*);
+    void transform_lednev_solution(TH2D*,TH2D*);
+    void plot_red_chi_sq_contributions_per_bin(TH2D*, TH2D*, TH2D*);
+    uint degrees_of_freedom=0;
+    bool filterIndices=false;
+    uint radius=3;
+    string lednev_output_file_name="";
+    vector<vector<uint> > filter_indices(uint);
 };
 #endif
